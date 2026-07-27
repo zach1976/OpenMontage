@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import html
 import re
+import socket
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +19,39 @@ from .base import Candidate, SearchFilters
 
 _API_URL = "https://commons.wikimedia.org/w/api.php"
 _USER_AGENT = "OpenMontageBot/0.1 (https://github.com/calesthio/OpenMontage)"
+
+# Commons serves metadata from commons.wikimedia.org but media bytes from
+# upload.wikimedia.org, which is fronted by per-datacenter caches. Some networks
+# reach the API host fine while the *nearest* media cache is unreachable —
+# observed from Thailand, where DNS returns the eqsin (Singapore) cache
+# 103.102.166.240 and every connection to it times out, on both IPv4 and IPv6,
+# sandboxed or not. The other caches answer normally, so on a connection error we
+# retry with DNS pinned to them. The URL keeps its hostname, so SNI and
+# certificate verification stay intact.
+_UPLOAD_HOST = "upload.wikimedia.org"
+_UPLOAD_FALLBACK_IPS = (
+    "185.15.59.240",   # esams (Amsterdam)
+    "208.80.154.240",  # eqiad (Ashburn)
+    "185.15.58.240",   # drmrs (Marseille)
+    "198.35.26.112",   # ulsfo (San Francisco)
+)
+
+
+@contextmanager
+def _dns_pinned(host: str, ip: str):
+    """Resolve `host` to `ip` for the duration of the block, nothing else."""
+    real_getaddrinfo = socket.getaddrinfo
+
+    def patched(target, port, *args, **kwargs):
+        if target == host:
+            target = ip
+        return real_getaddrinfo(target, port, *args, **kwargs)
+
+    socket.getaddrinfo = patched
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = real_getaddrinfo
 _COMMONS_LICENSE = "Wikimedia Commons (verify per-file license)"
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
@@ -78,7 +113,11 @@ class WikimediaSource:
                 "gsroffset": max(0, (max(filters.page, 1) - 1) * max(1, min(filters.per_page, 50))),
                 "prop": "imageinfo|info",
                 "iiprop": "url|size|mime|extmetadata|mediatype",
-                "iiurlwidth": 640,
+                # 1600px wide: big enough that the rendered thumbnail is usable as
+                # a final asset in a 1080-wide composition, so callers can prefer
+                # `thumbnail_url` over multi-megabyte originals (Commons food
+                # photos routinely run 8000px / 20MB+).
+                "iiurlwidth": 1600,
                 "inprop": "url",
             }
 
@@ -109,26 +148,50 @@ class WikimediaSource:
         return []
 
     def download(self, candidate: Candidate, out_path: Path) -> Path:
-        import requests  # lazy
-
         if not candidate.download_url:
             raise ValueError(f"Candidate {candidate.clip_id} has no download_url")
 
         out_path = Path(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        return _fetch_media(candidate.download_url, out_path)
 
+
+def _fetch_media(url: str, out_path: Path) -> Path:
+    """Download a Commons media URL, retrying against alternate upload caches.
+
+    Raises the original connection error if every cache is unreachable, so a
+    genuinely offline machine still fails loudly instead of hanging.
+    """
+    import requests  # lazy
+
+    def _stream(session_kwargs: dict | None = None) -> None:
         with requests.get(
-            candidate.download_url,
+            url,
             stream=True,
-            timeout=300,
+            timeout=(10, 300),
             headers={"User-Agent": _USER_AGENT},
+            **(session_kwargs or {}),
         ) as r:
             r.raise_for_status()
             with open(out_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=1 << 16):
                     if chunk:
                         f.write(chunk)
+
+    try:
+        _stream()
         return out_path
+    except (requests.ConnectionError, requests.Timeout) as first_error:
+        if _UPLOAD_HOST not in url:
+            raise
+        for ip in _UPLOAD_FALLBACK_IPS:
+            try:
+                with _dns_pinned(_UPLOAD_HOST, ip):
+                    _stream()
+                return out_path
+            except (requests.ConnectionError, requests.Timeout):
+                continue
+        raise first_error
 
 
 def _build_search_queries(query: str, kind: str) -> list[tuple[str, str]]:
