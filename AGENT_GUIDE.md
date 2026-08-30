@@ -228,6 +228,22 @@ All tools and agents must write outputs to these paths — **always pass an expl
 
 **This applies to atelier and HyperFrames-skill runs too**: hand-authored compositions still write the canonical artifacts they have (script or beats-plan, scene_plan-equivalent, asset manifest) plus checkpoints into `projects/<project-id>/`. The board is runtime-agnostic; only runs that skip the artifacts get a degraded board.
 
+## Review Handoff (Mandatory)
+
+Every render hands off through a **local review page**, never a bare mp4 path:
+
+```bash
+python3 scripts/build_review_page.py <project_id> --open
+```
+
+It writes `projects/<project_id>/review.html` — version switcher (holds the same
+timestamp across versions for A/B), clickable scene timeline with per-scene
+narration and image credits, a persisted review checklist, and a notes box whose
+"copy" button packages version + checklist state + notes for the user to paste back.
+
+The page is generated from `artifacts/` and `composition/props.json`. Never hand-edit
+the HTML — re-run the generator after each render. See `CLAUDE.md` for the full contract.
+
 ## Music Library
 
 Users can place royalty-free music tracks in `music_library/` (gitignored). The asset director will check this folder before falling back to API-based music generation.

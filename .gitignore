@@ -97,3 +97,6 @@ venv/
 
 # Backlot local cache (thumbnails)
 .backlot/
+
+# 生成的本地审片页（每次渲完重建，不是源）
+review_index.html

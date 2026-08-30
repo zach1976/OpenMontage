@@ -918,14 +918,18 @@ class VideoCompose(BaseTool):
 
         real_project_dir = entry_path.parent.resolve()
 
-        # Derive a stable slug. Prefer the first segment under a `projects/` ancestor.
+        # Derive a stable slug from the segment under the *innermost* `projects/`
+        # ancestor. Using the first match breaks when the repo itself lives under a
+        # directory named `projects` (e.g. ~/projects/OpenMontage/projects/<slug>):
+        # every project then resolves to the same slug and concurrent atelier
+        # renders silently overwrite each other's staged .tsx files.
         slug = real_project_dir.name
         try:
             parts = real_project_dir.parts
-            if "projects" in parts:
-                i = parts.index("projects")
-                if i + 1 < len(parts):
+            for i in range(len(parts) - 2, -1, -1):
+                if parts[i] == "projects":
                     slug = parts[i + 1]
+                    break
         except Exception:
             pass
 
