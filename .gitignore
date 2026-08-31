@@ -26,7 +26,18 @@ pipeline/
 tests/qa/output/
 
 # Project workspaces (generated assets, renders — all regenerable)
-projects/
+# 各集项目是媒体产物，不入库。**必须写成 `projects/*` 而不是 `projects/`** ——
+# 后者排除的是目录本身，git 不再往下看，底下的 `!` 例外一条都不会生效。
+projects/*
+# 例外：_shared 下的共享组件与封面底图是**源**，不是产物。
+#  · *.tsx / *.html —— 各集组件由脚本从这里拷贝生成，丢了就得重写
+#  · cover_src/     —— ChatGPT 出的封面整图，本机图片生成全线不通，重不出来
+# 字体分块不收：8.3MB 派生数据，`python3 scripts/fetch_cjk_fonts.py` 一条命令重建。
+!projects/_shared/
+projects/_shared/*
+!projects/_shared/*.tsx
+!projects/_shared/*.html
+!projects/_shared/cover_src/
 
 # Corpus directories (downloaded stock clips, thumbnails, embeddings —
 # regenerable from source APIs via corpus_builder). Explicit rule even

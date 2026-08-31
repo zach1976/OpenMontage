@@ -1,0 +1,341 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>禅意封面 · 整图提示词</title>
+<style>
+:root{--bg:#0B1113;--panel:#131C20;--line:#223036;--ink:#E7E3DA;--dim:#8A979D;
+      --gold:#D8B87A;--ok:#7FBF8A;--warn:#E0A25C;--red:#C9645A}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+     font:15px/1.75 -apple-system,"PingFang SC","Helvetica Neue",sans-serif}
+.wrap{max-width:1020px;margin:0 auto;padding:46px 26px 90px}
+h1{font-size:27px;font-weight:600;letter-spacing:.02em;margin:0 0 6px}
+.lead{color:var(--dim);margin:0 0 24px}
+.lead b{color:var(--ink);font-weight:600}
+.note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+      border-radius:10px;padding:15px 20px;margin:0 0 18px}
+.note.warn{border-left-color:var(--warn)}
+.note h2{font-size:15px;margin:0 0 8px;letter-spacing:.04em;color:var(--gold);font-weight:600}
+.note.warn h2{color:var(--warn)}
+.note ol,.note ul{margin:0;padding-left:20px;color:var(--dim)}
+.note li{margin:3px 0}
+.note code{background:#0A1013;color:var(--gold);padding:1px 6px;border-radius:4px;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;color:var(--dim);margin:8px 0 2px}
+th,td{border:1px solid var(--line);padding:5px 10px;text-align:left}
+th{color:var(--ink);font-weight:600;background:#0F171A}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+      padding:20px 22px 22px;margin:0 0 20px}
+.hd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.no{font-size:12.5px;letter-spacing:.14em;color:var(--gold)}
+.hd b{font-size:19px;font-weight:600}
+.hd .zh{color:var(--dim);font-size:14px}
+.chk{background:#0F171A;border:1px solid var(--line);border-radius:9px;padding:12px 15px;margin:0 0 14px}
+.chk h3{font-size:12.5px;letter-spacing:.1em;color:var(--warn);margin:0 0 7px;font-weight:600}
+.chk div{font-size:14px;margin:3px 0;color:var(--dim)}
+.chk div em{color:var(--ink);font-style:normal}
+.chk .th{font-size:17px;color:#D8C79A}
+.fn{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+.fn code{background:#0A1013;border:1px solid var(--line);color:var(--gold);
+         padding:5px 11px;border-radius:6px;font-size:13.5px}
+.fn span{color:var(--dim);font-size:13px}
+pre{background:#0A1013;border:1px solid var(--line);border-radius:9px;
+    padding:15px 17px;margin:0;white-space:pre-wrap;word-break:break-word;
+    font:12.6px/1.68 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C8D3D8;
+    max-height:300px;overflow:auto}
+.row{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}
+button{background:#1C2A31;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+       padding:8px 16px;font-size:13.5px;cursor:pointer;font-family:inherit;transition:.14s}
+button:hover{background:#25353D;border-color:#33454E}
+button.done{background:#1B3323;border-color:#2F5B3C;color:var(--ok)}
+button.pri{background:#2A2118;border-color:#4A3A22;color:var(--gold)}
+button.pri:hover{background:#362A1D}
+footer{color:var(--dim);font-size:13px;margin-top:34px;border-top:1px solid var(--line);padding-top:18px}
+</style></head><body><div class="wrap">
+
+<h1>禅意封面 · 整图提示词</h1>
+<p class="lead">这一版<b>整张图都由 ChatGPT 出</b>——背景、中文标题、泰文、期号、闲章全在图里，
+我这边一个字都不再画。成片第一帧＝你生成的这张图。</p>
+
+<div class="note warn">
+  <h2>⚠ 先看这条：文字是这批图唯一的风险点</h2>
+  <ul>
+    <li><b>泰文几乎必错。</b>出图模型没有泰文字形概念，声调符和上下伸笔画会乱接。
+        每张卡下面有<b>逐字校对清单</b>，生成后<b>一个字符一个字符比对</b>，别只看"像不像泰文"。</li>
+    <li>中文也会少笔画／写错字，重点查笔画多的：<b>远、变、恼、静、够、算、撑、忘</b>。</li>
+    <li>不对就让它重画那一处（「把泰文那一行改成 …，其余不变」），或者直接重跑。
+        试了三四轮还不行就告诉我，<b>我把泰文从提示词里拿掉</b>，只留中文。</li>
+  </ul>
+</div>
+
+<div class="note">
+  <h2>版位几何（提示词里已经按百分比写死了）</h2>
+  <p style="color:var(--dim);margin:0 0 6px">平台拿第一帧当封面，各版位裁法不同，所以文字必须落在能活下来的范围里：</p>
+  <table>
+    <tr><th>版位</th><th>保留范围（占画面高度）</th><th>什么时候出现</th></tr>
+    <tr><td>9:16 详情页</td><td>0 – 100%</td><td>播放页</td></tr>
+    <tr><td><b>3:4 信息流</b></td><td><b>12.5% – 87.5%</b></td><td>推荐流、主页九宫格（最常见）</td></tr>
+    <tr><td>16:9 横屏</td><td><b>34% – 66%</b>（最紧）</td><td>横屏版位</td></tr>
+  </table>
+  <ul style="margin-top:8px">
+    <li>标题写在 <code>40%–55%</code>，泰文 <code>59%</code>，闲章 <code>58%</code> —— 三关全过。</li>
+    <li>品牌行挪到 <code>15.5%</code>、期号 <code>18.5%</code>（旧版在 7.8%，<b>3:4 会被裁掉</b>，这次修正）。</li>
+    <li>抖音详情页还会盖住顶部 11% 和底部 20%，所以 66% 以下不放任何信息。</li>
+  </ul>
+</div>
+
+<div class="note">
+  <h2>怎么用</h2>
+  <ol>
+    <li>点「复制提示词」→ 粘进 ChatGPT 出图。</li>
+    <li>想让五张风格更统一：<b>把上一张生成好的图一起附给它</b>，说「保持这个风格」。</li>
+    <li>照清单逐字校对，过了再存。文件名写在提示词最后一行。</li>
+    <li>全部放进 <code>projects/_shared/cover_src/</code>，告诉我一声，我接进去重渲。</li>
+  </ol>
+</div>
+
+<div class="note warn">
+  <h2>第一轮出图的检查结论（2026-08-29 18:24）</h2>
+  <ul>
+    <li><b>中文全对</b>——五张的标题、期号、闲章字逐个核过，没有错字缺笔。</li>
+    <li><b>泰文 01／02／03／04 全对</b>——放到 2× 和 8× 逐字符核过，声调符位置也对。</li>
+    <li><b style="color:var(--red)">泰文 05 错一处</b>：<code>ก็</code> 出成了 <code>กั</code>
+        （ก 上面那个记号成了圆圈的 ั，应该是尖顶的 ็）。<code>กั</code> 不是词。</li>
+    <li><b style="color:var(--red)">五张的品牌行都被 3:4 裁切线拦腰切断</b>：模型放在 y≈196（11.7%），
+        裁切线在 12.5%。期号、标题、泰文、闲章都安全，只有最上面那一行中招。</li>
+  </ul>
+  <p style="color:var(--dim);margin:8px 0 0">
+    下面的提示词已经改成 <b>17.5% / 20.5%</b> 并加了「15% 以上不许有任何文字」。<br>
+    五张都要重出一轮；<b>05 那张顺带把泰文改对</b>。想省事就用每张卡上的
+    <b>「复制修图提示词」</b>——把现有图附给 ChatGPT，只让它动该动的地方。</p>
+</div>
+
+<div id="cards"></div>
+
+<footer>
+  接进去之后，钩子那一段就是<b>纯图</b>：品牌行、期号、标题、泰文、闲章都不再由代码绘制，
+  淡出后交回正片的空镜。正片（整句、逐字卡、片尾）不受影响。
+</footer>
+</div>
+
+<script>
+const GEOM =
+`── CANVAS & SAFE ZONES ──
+Vertical portrait, 9:16, 1080 x 1920 px.
+All text positions below are given as a percentage of the image HEIGHT, measured from the top.
+EVERY piece of text must sit inside the 30%–62% band. NOTHING may be printed above 25% height
+or below 66% height — the platform crops the top and covers the bottom in its feed.
+Leave the region below 66% free of any text — it gets cropped or covered on the platform.`;
+
+const TYPO =
+`── TYPOGRAPHY RULES ──
+Chinese text: a THIN, elegant Chinese serif (Song / Ming style, light weight, hairline strokes),
+generous letter-spacing, warm off-white. NOT bold, NOT a heavy black serif, NOT a sans-serif.
+The main title is by far the largest text in the image; everything else is much smaller and quieter.
+All characters must be crisp, correctly formed and perfectly legible — correct strokes,
+no invented, distorted, mirrored or half-drawn characters.
+Text sits directly on the photograph — no text boxes, no plates, no banners, no outlines.
+
+── DO NOT ──
+Do not add any text beyond exactly what is listed above: no English words, no pinyin,
+no romanisation, no dates, no extra Chinese characters, no decorative lettering.
+No watermark, no signature, no logo, no border, no frame, no UI chrome, no drop shadows on shapes.
+No people, no faces, no animals, no buildings, no vehicles, no boats.`;
+
+const EPS = [
+ {no:"No.01", name:"无常", zh:"没有什么，能永远陪着我们",
+  file:"thai_zen_01_impermanence_cover.png", seal:"常",
+  t1:"有什么，", t2:"是永远不会改变的？",
+  thai:"ไม่มีอะไรอยู่กับเราได้ตลอดไป",
+  align:"left", ax:"11% from the LEFT edge",
+  scene:`Layered mountain ridges dissolving into slow-moving mist at blue dusk. The nearest ridge is a
+hard black silhouette; every ridge behind it is fainter than the last, until the farthest is almost
+gone into the haze. Nothing is solid — the whole scene is in the middle of disappearing.`,
+  color:`Cold slate blue-green, near-monochrome, with one restrained warm-gold rim on the highest
+cloud edge. Deep shadows, luminous misty sky in the top third.`,
+  enso:`A large hand-brushed ink circle (Japanese ensō) in muted gold, drawn as ONE tapering brush
+stroke that does not close — thick where the stroke starts, thin where it lifts off. Centred around
+75% width / 24% height, about 32% of the image width across, very low opacity, sitting in the sky
+like a moon. It must read as ink, not as a geometric ring.`},
+
+ {no:"No.02", name:"放下", zh:"放下，并不是忘记一切",
+  file:"thai_zen_02_letgo_cover.png", seal:"放",
+  t1:"放下，", t2:"就一定要忘记吗？",
+  thai:"การปล่อยวางไม่ใช่การลืมทุกอย่าง",
+  align:"right", ax:"11% from the RIGHT edge",
+  scene:`A dark, still lake at night. Two or three paper sky-lanterns have already drifted far away and
+high up — tiny, warm, slightly out of focus, near the top of the frame. Most of the image is empty
+black water and empty sky. Something has been let go of, and it is still visible.`,
+  color:`Warm near-black and deep umber, with one small amber ember-glow low on the horizon and in
+the distant lanterns. No other colour anywhere.`,
+  enso:`A large hand-brushed ink circle (Japanese ensō) in warm amber, drawn as ONE tapering brush
+stroke that does not close. Centred around 25% width / 25% height, about 31% of the image width
+across, very low opacity. It must read as ink, not as a geometric ring.`},
+
+ {no:"No.03", name:"平静", zh:"心的平静，不是没有问题",
+  file:"thai_zen_03_calm_cover.png", seal:"静",
+  t1:"是不是没有烦恼，", t2:"才叫平静？",
+  thai:"ใจสงบไม่ใช่ไม่มีปัญหา",
+  align:"left", ax:"11% from the LEFT edge",
+  scene:`A perfectly still lake at first light. A small island of trees sits low in the frame as a black
+silhouette, mirrored almost exactly in the water. Off to one side a single faint concentric ripple
+ring spreads across the surface — the water is calm, but not untouched.`,
+  color:`Cool moonlit blue-grey and pale silver. Pale luminous sky broken by one gap in the cloud,
+very dark water below.`,
+  enso:`A large hand-brushed ink circle (Japanese ensō) in pale moon-silver, drawn as ONE tapering
+brush stroke that does not close. Centred around 75% width / 23% height, about 31% of the image
+width across, very low opacity, hanging in the sky like a moon. Ink, not a geometric ring.`},
+
+ {no:"No.04", name:"知足", zh:"幸福，不是拥有得多",
+  file:"thai_zen_04_enough_cover.png", seal:"足",
+  t1:"要拥有多少，", t2:"才算幸福？",
+  thai:"ความสุขไม่ใช่การมีมาก",
+  align:"left", ax:"11% from the LEFT edge",
+  scene:`A single bare branch entering from the upper-left corner, carrying just three small blossoms,
+against a vast empty dusk sky. Everything else in the frame is empty air. The emptiness is the
+subject — the branch takes up less than a fifth of the image.`,
+  color:`Muted plum violet and dusty rose fading to near-black, with a warm honey highlight only
+where the last light catches the blossoms. Keep the middle band clearly darker than the top.`,
+  enso:`A large hand-brushed ink circle (Japanese ensō) in warm honey gold, drawn as ONE tapering
+brush stroke that does not close. Centred around 75% width / 26% height, about 31% of the image
+width across, very low opacity. Ink, not a geometric ring.`},
+
+ {no:"No.05", name:"重新开始", zh:"只要还在呼吸，就能重新开始",
+  file:"thai_zen_05_beginagain_cover.png", seal:"息",
+  t1:"今天，", t2:"撑不下去了吗？",
+  thai:"ยังหายใจอยู่ก็เริ่มใหม่ได้",
+  align:"right", ax:"11% from the RIGHT edge",
+  thaiFix:`The character after อยู่ must be ก carrying the MAI TAIKHU mark ( ็ ) — the small angular
+   "tent" shape — forming the word ก็ . Your previous version put MAI HAN AKAT ( ั ), the round
+   curl, above the ก, producing กั , which is not a word. All other Thai characters were correct.`,
+  scene:`A narrow valley at dawn, filled to the brim with slow mist. A faint river winds along the
+bottom of the valley and disappears into the fog. The first light of day is just touching the far
+ridge at the top of the frame — the day has not started yet, but it is about to.`,
+  color:`Deep pine green and cold grey-green, with pale dawn gold only on the far ridge and in the
+highest mist. Darken the sky behind the top text so small type stays readable.`,
+  enso:`A large hand-brushed ink circle (Japanese ensō) in pale dawn gold, drawn as ONE tapering
+brush stroke that does not close. Centred around 25% width / 25% height, about 30% of the image
+width across, very low opacity. Ink, not a geometric ring.`},
+];
+
+const prompt = (e) =>
+`Create a FINISHED vertical poster image. The typography is part of the image — render all of the
+text below directly into the picture, cleanly and correctly.
+
+${GEOM}
+
+── BACKGROUND PHOTOGRAPH ──
+${e.scene.trim()}
+
+COLOUR: ${e.color.trim()}
+
+TONAL STRUCTURE (this is what makes it work): luminous misty light in the TOP third; near-black
+silhouetted forms along the BOTTOM third; the band from 38% to 62% height stays dark, calm and
+empty so the title reads against it. Painterly photographic, Chinese ink-wash sensibility,
+soft atmospheric haze, fine film grain, low saturation, no harsh sunlight, no lens flare,
+no visible sun disc.
+
+── INK CIRCLE ──
+${e.enso.trim()}
+
+── TEXT TO RENDER (these exact characters, nothing more, nothing less) ──
+1. Brand line — centred horizontally, at 31% height, i.e. sitting in the empty space DIRECTLY
+   ABOVE the gold rule and the title, NOT at the top of the picture. The top 15% of the image is
+   cropped away by the platform, so nothing may be printed there. Small, widely letter-spaced,
+   dim warm grey, about 1.5% of the image height in cap size:
+   泰语千词 · 每天一句
+
+2. Issue label — centred horizontally, at 34% height, immediately under the brand line. Slightly smaller than the brand line,
+   widely letter-spaced, muted gold:
+   禅意 · ${e.no}
+
+3. A single thin hairline rule in muted gold, ${e.align === "left" ? "starting at the left margin and fading out to the right" : "fading in from the left and ending at the right margin"},
+   about 27% of the image width long, at 38% height. Only ONE rule — do not add a second one below
+   the title.
+
+4. MAIN TITLE — two lines, ${e.align}-aligned, ${e.ax}, occupying 40% to 55% height.
+   This is the largest element in the image. Thin light serif, warm off-white, generous spacing:
+   ${e.t1}
+   ${e.t2}
+
+5. One line of Thai script — ${e.align}-aligned to the same margin as the title, at 59% height,
+   small (roughly half the title size), warm gold. Render this Thai text exactly, with every tone
+   mark and vowel sign in the correct position:
+   ${e.thai}
+
+6. A small vermilion Chinese seal (a carved square stone chop: irregular hand-cut edge, slightly
+   uneven ink, rotated about 2 degrees), roughly 7% of the image width, placed at the
+   ${e.align === "left" ? "RIGHT end" : "LEFT end"} of the Thai line, vertically centred on it.
+   Inside the seal, one single character in white:
+   ${e.seal}
+
+${TYPO}
+
+Save the resulting image with this exact filename: ${e.file}`;
+
+function copy(text, btn){
+  const done = () => { const t = btn.textContent; btn.textContent = "✓ 已复制";
+    btn.classList.add("done"); setTimeout(()=>{btn.textContent=t;btn.classList.remove("done");},1400); };
+  if (navigator.clipboard && window.isSecureContext)
+    navigator.clipboard.writeText(text).then(done, ()=>fb(text,done));
+  else fb(text, done);
+}
+function fb(text, done){                       // file:// 下 clipboard API 可能被拒，留一条老路
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); } catch(e) { alert("复制失败，请手动选中"); }
+  document.body.removeChild(ta);
+}
+
+const fix = (e) =>
+`I am attaching an image you generated earlier. Produce a corrected version of that exact image.
+
+KEEP IDENTICAL: the photograph, the colours, the ink circle, the gold hairline rule, the main
+Chinese title, the Thai line's position and size, and the red seal. Do not re-compose the picture.
+
+CHANGE ONLY THIS:
+1. Move the two small centred text lines from the top of the picture DOWN into the empty space
+   directly ABOVE the gold rule and the title: brand line at 31% of the image height, issue label
+   at 34%. They are currently near the very top, and the platform crops the top 12.5% away in its
+   feed, so they are lost or cut in half there. Nothing may be printed above 25% of the height.
+   The two lines are, exactly:
+   泰语千词 · 每天一句
+   禅意 · ${e.no}${e.thaiFix ? `
+2. Re-render the Thai line. It must read EXACTLY this, character for character:
+   ${e.thai}
+   ${e.thaiFix}` : ""}
+
+Everything else must stay as it is. No new text, no watermark, no border.
+
+Save the resulting image with this exact filename: ${e.file}`;
+
+const box = document.getElementById("cards");
+EPS.forEach(e => {
+  const p = prompt(e);
+  const d = document.createElement("div"); d.className = "card";
+  const hd = document.createElement("div"); hd.className = "hd";
+  hd.innerHTML = `<span class="no">禅意 · ${e.no}</span><b>${e.name}</b><span class="zh">${e.zh}</span>`;
+  const chk = document.createElement("div"); chk.className = "chk";
+  chk.innerHTML = `<h3>生成后逐字校对这 5 处</h3>`
+    + `<div>品牌行　<em>泰语千词 · 每天一句</em></div>`
+    + `<div>期　号　<em>禅意 · ${e.no}</em></div>`
+    + `<div>标　题　<em>${e.t1}</em> ／ <em>${e.t2}</em></div>`
+    + `<div class="th">泰　文　<em>${e.thai}</em></div>`
+    + `<div>闲　章　<em>${e.seal}</em>（一个字，白字红底）</div>`;
+  const fn = document.createElement("div"); fn.className = "fn";
+  fn.innerHTML = `<span>存成这个名字 →</span><code>${e.file}</code>`;
+  const bf = document.createElement("button"); bf.textContent = "复制文件名";
+  bf.onclick = () => copy(e.file, bf); fn.appendChild(bf);
+  const pre = document.createElement("pre"); pre.textContent = p;
+  const row = document.createElement("div"); row.className = "row";
+  const bp = document.createElement("button"); bp.className = "pri"; bp.textContent = "复制提示词";
+  bp.onclick = () => copy(p, bp); row.appendChild(bp);
+  const bx = document.createElement("button"); bx.textContent = "复制修图提示词（附上现有图用）";
+  bx.onclick = () => copy(fix(e), bx); row.appendChild(bx);
+  const bt = document.createElement("button"); bt.textContent = "只复制泰文（用来比对）";
+  bt.onclick = () => copy(e.thai, bt); row.appendChild(bt);
+  d.append(hd, chk, fn, pre, row); box.appendChild(d);
+});
+const all = document.createElement("div"); all.className = "row";
+const ba = document.createElement("button"); ba.textContent = "复制全部五段";
+ba.onclick = () => copy(EPS.map(e => `【禅意 ${e.no} ${e.name}】\n${prompt(e)}`).join("\n\n────────\n\n"), ba);
+all.appendChild(ba); box.appendChild(all);
+</script></body></html>
