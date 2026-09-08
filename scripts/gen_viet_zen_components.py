@@ -10,6 +10,8 @@ CHASSIS = '''import React from "react";
 import { loadFonts, ZH_TITLE, ZH_UI } from "./CjkFonts";
 import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, staticFile,
          useCurrentFrame } from "remotion";
+import { Palette, LACQUER_GOLD, PosterBg, Petals, Landscape, CornerFrets,
+         PosterBrand, PosterTitle } from "./Poster";
 
 // ---------------------------------------------------------------------------
 // 越南语千词 · 禅意 __NO__「__NAME__」
@@ -39,6 +41,7 @@ export type Word = { id: string; thai: string; roman: string; zh: string;
 export type Props = {
   hook: any; sentence: any; words: Word[]; again: any; outro: any;
   cover?: string;
+  poster?: { t1?: string; t2?: string };
   bg?: { src: string; start: number; dur: number; xf: number }[];
   bgm: { src: string; gain: number }; speak: number[][]; fps: number;
 };
@@ -91,6 +94,31 @@ const Atmosphere: React.FC = () => {
 };
 
 /** 封面：整张生成图，只铺钩子那一段，末尾 26 帧淡出。不加任何罩子 —— 图里已有文字与明暗 */
+/**
+ * 程序化封面 —— 只在没有生成图时用。
+ * 这个系列原本「整张封面由 ChatGPT 出」，但本机十二个出图工具全不通（见 memory
+ * openmontage-image-providers-blocked）。没有封面图的话第 0 帧就是一张糊的底片，
+ * 平台正好拿它当封面。所以这里退回到通用海报版式：核心带 660–1260 里只有一句话，
+ * 两行等大，标题带国名。等有生成图了，props.cover 一填就自动切回图版。
+ */
+const PosterCover: React.FC<{ poster: any; dur: number; fps: number }> = ({ poster, dur, fps }) => {
+  const f = useCurrentFrame(), n = Math.round(dur * fps);
+  const out = interpolate(f, [n - 26, n], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const P: Palette = { ...LACQUER_GOLD, deep: INK, mid: INK, glow: ACCENT,
+                       stroke: INK, plaqueFill: CREAM, plaqueInk: INK };
+  return (
+    <AbsoluteFill style={{ opacity: out }}>
+      <PosterBg p={P} variant="night" sun={["50%", "28%"]} />
+      <Landscape p={P} top={1460} />
+      <CornerFrets p={P} />
+      <Petals p={P} />
+      <PosterBrand p={P} zh={ZH} brand="越南语千词 app · 在越南生活够用了"
+                   badge={"禅意一句 · No." + "__NO__"} />
+      <PosterTitle p={P} zh={ZH} t1={poster?.t1} t2={poster?.t2} layout="__LAYOUT__" />
+    </AbsoluteFill>
+  );
+};
+
 const CoverPlate: React.FC<{ src: string; dur: number; fps: number }> = ({ src, dur, fps }) => {
   const f = useCurrentFrame(), n = Math.round(dur * fps);
   const out = interpolate(f, [n - 26, n], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -175,7 +203,7 @@ const Outro: React.FC<{ o: any; fps: number }> = ({ o, fps }) => {
   );
 };
 
-export const __COMP__: React.FC<Props> = ({ hook, sentence, words, again, outro, cover, bg, bgm, speak, fps }) => {
+export const __COMP__: React.FC<Props> = ({ hook, sentence, words, again, outro, cover, poster, bg, bgm, speak, fps }) => {
   const f = (s: number) => Math.round(s * fps);
   const duck = (frame: number) => {
     const t = frame / fps;
@@ -188,6 +216,10 @@ export const __COMP__: React.FC<Props> = ({ hook, sentence, words, again, outro,
       {cover ? (
         <Sequence from={0} durationInFrames={f(hook.dur) + 8} layout="none">
           <CoverPlate src={cover} dur={hook.dur} fps={fps} />
+        </Sequence>
+      ) : poster ? (
+        <Sequence from={0} durationInFrames={f(hook.dur) + 8} layout="none">
+          <PosterCover poster={poster} dur={hook.dur} fps={fps} />
         </Sequence>
       ) : null}
       <Audio src={staticFile(bgm.src)} volume={duck} />
@@ -512,9 +544,121 @@ const Dawn: React.FC<{ lit: number; op: number }> = ({ lit, op }) => {
   );
 };''')
 
+# 06 慢一点：一条走过的线，讲一个词就往前推一小截 —— 全片动效刻意比其它集慢一倍
+EPS["viet-zen-06-dicham"] = dict(
+  comp="DiCham", no="06", name="慢一点", layout="left",
+  art="一条走过的线：画面下方一条横线，讲一个词线上的亮段就往前推一小截，"
+      "当前位置留一个小点。所有动效时长翻倍——「慢」是让观众等出来的，不是写出来的。",
+  ink="#101619", cream="#E8EDE8", dim="rgba(232,237,232,0.42)", accent="#9FC0A8",
+  scrim="rgba(16,22,25,0.30)", border="rgba(159,192,168,0.52)",
+  radial="radial-gradient(126% 72% at 50% 36%, rgba(40,60,54,0.10) 0%, rgba(22,34,32,0.26) 48%, rgba(16,22,25,0.74) 100%)",
+  fog="rgba(170,200,180,0.08)",
+  vgrad="linear-gradient(180deg, rgba(16,22,25,0.46) 0%, rgba(16,22,25,0.05) 20%, rgba(16,22,25,0.40) 44%, rgba(16,22,25,0.40) 58%, rgba(16,22,25,0.06) 76%, rgba(16,22,25,0.62) 100%)",
+  device='''/** 装置：一条走过的线。走过多少是唯一的进度指示，没有别的刻度 */
+const Trail: React.FC<{ p: number; op: number }> = ({ p, op }) => {
+  const L = 132, W = 816, Y = 1214;
+  return (
+    <div style={{ opacity: op }}>
+      <div style={{ position: "absolute", left: L, top: Y, width: W, height: 1,
+                    background: "rgba(232,237,232,0.20)" }} />
+      <div style={{ position: "absolute", left: L, top: Y, width: W * p, height: 1,
+                    background: "rgba(159,192,168,0.72)" }} />
+      <div style={{ position: "absolute", left: L + W * p - 4, top: Y - 4, width: 8, height: 8,
+                    borderRadius: 999, background: ACCENT }} />
+    </div>
+  );
+};''',
+  card='''const WordCard: React.FC<{ w: Word; index: number; total: number; fps: number }> =
+({ w, index, total, fps }) => {
+  const f = useCurrentFrame(), n = Math.round(w.dur * fps);
+  // 这一集所有动效都比别集慢一倍：淡入 40 帧、上浮 60 帧。慢是这一集的内容本身
+  const p = fade(f, 0, 40, n - 24, n);
+  const rise = interpolate(f, [0, 60], [26, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const q = interpolate(f, [40, 96], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // 线上的亮段：从上一格缓缓推到这一格
+  const seg = interpolate(f, [0, 70], [index / total, (index + 1) / total],
+                          { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill>
+      <Brand />
+      <div style={{ position: "absolute", top: 236, width: "100%", textAlign: "center",
+                    fontFamily: ZH_S, fontSize: 24, letterSpacing: 8, color: DIM, opacity: p }}>
+        逐词拆解 {index + 1} / {total}
+      </div>
+      <div style={{ position: "absolute", top: 786, width: "100%", textAlign: "center",
+                    fontFamily: VI, fontSize: 96, lineHeight: 1.35, color: ACCENT, opacity: p,
+                    transform: `translateY(${rise}px)` }}>
+        {w.thai}
+      </div>
+      <div style={{ position: "absolute", top: 946, width: "100%", textAlign: "center",
+                    fontFamily: ZH, fontSize: 52, lineHeight: 1.4, color: CREAM, opacity: q }}>
+        {w.zh}
+      </div>
+      <Trail p={seg} op={p} />
+      <Sequence from={Math.round((w.zhAt - w.start) * fps)}><Audio src={staticFile(w.zhAudio)} /></Sequence>
+      <Sequence from={Math.round((w.thAt - w.start) * fps)}><Audio src={staticFile(w.thAudio)} /></Sequence>
+      <Sequence from={Math.round((w.thAt2 - w.start) * fps)}><Audio src={staticFile(w.thAudio)} /></Sequence>
+    </AbsoluteFill>
+  );
+};''')
+
+# 07 都会变：颜色自己在暖冷之间来回 —— 不用图形讲道理，让画面变一遍给你看
+EPS["viet-zen-07-thaydoi"] = dict(
+  comp="ThayDoi", no="07", name="都会变", layout="frame",
+  art="颜色自己在变：词出现时是暖的，停在画面上的过程中缓缓转冷，再转回暖；"
+      "墨罩跟着一起呼吸。这一集不画装置，它让画面自己变一遍。",
+  ink="#15100C", cream="#F2EAE0", dim="rgba(242,234,224,0.42)", accent="#E0A468",
+  scrim="rgba(21,16,12,0.30)", border="rgba(224,164,104,0.50)",
+  radial="radial-gradient(126% 72% at 50% 36%, rgba(70,48,32,0.12) 0%, rgba(34,26,20,0.26) 48%, rgba(21,16,12,0.74) 100%)",
+  fog="rgba(210,170,130,0.08)",
+  vgrad="linear-gradient(180deg, rgba(21,16,12,0.46) 0%, rgba(21,16,12,0.05) 20%, rgba(21,16,12,0.40) 44%, rgba(21,16,12,0.40) 58%, rgba(21,16,12,0.06) 76%, rgba(21,16,12,0.62) 100%)",
+  device='''/** 装置：没有图形，只有颜色。暖 ↔ 冷之间来回插值，词和罩子一起变 */
+const WARM: [number, number, number] = [224, 164, 104];
+const COOL: [number, number, number] = [116, 156, 186];
+const mix = (t: number) => {
+  const c = WARM.map((w, i) => Math.round(w + (COOL[i] - w) * t));
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+};
+/** 一层跟着一起呼吸的暖冷罩 —— 幅度很小，看得出在变，不至于闪 */
+const Breath: React.FC<{ t: number; op: number }> = ({ t, op }) => (
+  <AbsoluteFill style={{ opacity: op * 0.16,
+    background: `linear-gradient(180deg, ${mix(t)} 0%, transparent 62%)` }} />
+);''',
+  card='''const WordCard: React.FC<{ w: Word; index: number; total: number; fps: number }> =
+({ w, index, total, fps }) => {
+  const f = useCurrentFrame(), n = Math.round(w.dur * fps);
+  const p = fade(f, 0, 22, n - 18, n);
+  const q = interpolate(f, [24, 54], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // 一张卡的时间里走完「暖 → 冷 → 暖」一个来回；相邻两张卡起点错开，免得看着像闪
+  const t = (1 - Math.cos(((f / fps) * Math.PI) / 2.6 + index * 0.7)) / 2;
+  return (
+    <AbsoluteFill>
+      <Breath t={t} op={p} />
+      <Brand />
+      <div style={{ position: "absolute", top: 236, width: "100%", textAlign: "center",
+                    fontFamily: ZH_S, fontSize: 24, letterSpacing: 8, color: DIM, opacity: p }}>
+        逐词拆解 {index + 1} / {total}
+      </div>
+      <div style={{ position: "absolute", top: 792, width: "100%", textAlign: "center",
+                    fontFamily: VI, fontSize: 96, lineHeight: 1.35, color: mix(t), opacity: p }}>
+        {w.thai}
+      </div>
+      <div style={{ position: "absolute", top: 952, width: "100%", textAlign: "center",
+                    fontFamily: ZH, fontSize: 52, lineHeight: 1.4, color: CREAM, opacity: q }}>
+        {w.zh}
+      </div>
+      <Sequence from={Math.round((w.zhAt - w.start) * fps)}><Audio src={staticFile(w.zhAudio)} /></Sequence>
+      <Sequence from={Math.round((w.thAt - w.start) * fps)}><Audio src={staticFile(w.thAudio)} /></Sequence>
+      <Sequence from={Math.round((w.thAt2 - w.start) * fps)}><Audio src={staticFile(w.thAudio)} /></Sequence>
+    </AbsoluteFill>
+  );
+};''')
+
+
 for pid, e in EPS.items():
     src = (CHASSIS
            .replace("__NO__", e["no"]).replace("__NAME__", e["name"]).replace("__ART__", e["art"])
+           .replace("__LAYOUT__", e.get("layout", "center"))
            .replace("__INK__", e["ink"]).replace("__CREAM__", e["cream"]).replace("__DIM__", e["dim"])
            .replace("__ACCENT__", e["accent"]).replace("__SCRIM__", e["scrim"])
            .replace("__RADIAL__", e["radial"]).replace("__FOG__", e["fog"])

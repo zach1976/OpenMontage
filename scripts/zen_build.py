@@ -76,7 +76,8 @@ def timeline(proj: Path) -> dict:
     bgp = proj / "artifacts/bg_plan.json"
     # 封面底图由 import_cover_src.py 接进来；重排时间轴不能把它冲掉
     cover = "img/cover.png" if (proj / "composition/public/img/cover.png").exists() else None
-    return dict(width=1080, height=1920, totalSeconds=round(t, 3), totalFrames=int(round(t * 30)),
+    poster = M.get("poster")
+    return dict(poster=poster, width=1080, height=1920, totalSeconds=round(t, 3), totalFrames=int(round(t * 30)),
                 hook=hook, sentence=sentence, words=words, again=again, outro=outro, cover=cover,
                 bg=json.loads(bgp.read_text()) if bgp.exists() else [],
                 bgm=dict(src="music/bgm.mp3", gain=0.085), speak=speak, fps=30)

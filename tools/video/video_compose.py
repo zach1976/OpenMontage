@@ -826,6 +826,11 @@ class VideoCompose(BaseTool):
             cmd.append(f"--crf={bespoke['crf']}")
         if bespoke.get("concurrency"):
             cmd.append(f"--concurrency={bespoke['concurrency']}")
+        # 每帧超时。Remotion CLI 默认 30s，会盖过组件里 delayRender 自己设的时限——
+        # 字体多的合成（CJK 分块 woff2）在机器忙的时候正好卡在这一档上，
+        # 报的却是 "Open delayRender() handles: cjk-fonts"，看着像字体坏了。
+        if bespoke.get("timeout_ms"):
+            cmd.append(f"--timeout={int(bespoke['timeout_ms'])}")
 
         try:
             # Run from inside the composer dir so npx resolves the local

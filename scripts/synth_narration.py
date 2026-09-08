@@ -133,6 +133,13 @@ def main() -> int:
             return 1
         raw = audio / f"{u['id']}_raw.mp3"
         final = audio / f"{u['id']}_x.mp3"
+        # 已经合成过的就跳过。edge-tts 会限流，一整批里失败一段就整轮中断；
+        # 不跳过的话每次重试都要把前面几十段重新合成一遍，等于拿额度去重做已有的活，
+        # 越重试越合不出来（2026-09-08 越南神曲那三集就卡在这上面）。
+        if final.exists() and final.stat().st_size > 0:
+            durations[u["id"]] = probe(final)
+            print(f"  {u['id']:16} {durations[u['id']]:6.2f}s  已存在，跳过")
+            continue
         edge_say(u["text"], voice, rates.get(lang), raw, pitches.get(lang))
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw),

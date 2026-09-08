@@ -42,7 +42,8 @@ SUBDIR = {"泰国小名": "series_nickname", "泰国人的英文名": "series_ni
           "怎么称呼": "series_nickname", "高频词": "series_high_freq_word",
           "禅意一句": "series_zen", "泰语谚语": "series_zen",
           "越南名字": "series_viet_name", "越南称呼": "series_viet_name",
-          "越南美食": "series_food", "神曲跟唱": "series_song"}
+          "越南美食": "series_food", "越南语神曲": "series_song",
+           "泰语神曲": "series_song", "神曲跟唱": "series_song"}
 # 少数子系列在两个号下的目录名不一样 —— 越南语那边高频词的老目录叫 series_high_freq
 # （没有 _word 后缀），跟着老目录走，别新开一个平行目录。
 SUBDIR_BY_SERIES = {(2, "高频词"): "series_high_freq"}

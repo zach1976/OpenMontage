@@ -90,6 +90,36 @@ EPISODES = [
          grade="saturation=0.62:brightness=0.050:contrast=1.20",
          art="墨蓝 → 晨金。装置是「地平线上的光」：一条地平线，每讲一个词线上的光带升高一档，"
              "到最后整条线亮起来 —— 天亮不是一下子的事。"),
+    dict(no=6, pid="viet-zen-06-dicham", comp="DiCham", slug="viet_zen_06_dicham",
+         title="越南语千词 · 禅意 06 慢一点",
+         hook="走得慢，\n就算停下了吗？", hook_tts="走得慢，就算停下了吗？",
+         vi="Đi chậm cũng là đi.",
+         vi_lines=["Đi chậm", "cũng là đi."],
+         zh="慢慢走，也是在走",
+         words=[("Đi", "走 · 去"), ("Chậm", "慢"), ("Cũng", "也"), ("Là", "是")],
+         head=["Đi", "Chậm"], bgm="m_ambient.mp3",
+         bg=[("coverr-walking-to-the-mountain-top-8360.mp4", 0.62),
+             ("coverr-road-in-the-mountains-7132.mp4", 0.44),
+             ("coverr-desert-island-7521.mp4", 0.30)],
+         grade="saturation=0.56:brightness=0.028:contrast=1.18",
+         art="晨雾灰 + 苔绿。装置是「一条走过的线」：画面下方一条横线，讲一个词，"
+             "线上的亮段就往前推一小截，当前位置留一个小点；全片的动效速度刻意比其它集慢一倍——"
+             "「慢」不是靠字面说的，是让观众等出来的。"),
+    dict(no=7, pid="viet-zen-07-thaydoi", comp="ThayDoi", slug="viet_zen_07_thaydoi",
+         title="越南语千词 · 禅意 07 都会变",
+         hook="难过，\n会一直难过下去吗？", hook_tts="难过，会一直难过下去吗？",
+         vi="Vui buồn rồi cũng thay đổi.",
+         vi_lines=["Vui buồn", "rồi cũng thay đổi."],
+         zh="开心和难过，最后都会变",
+         words=[("Vui", "开心"), ("Buồn", "伤心"), ("Cũng", "也"), ("Thay đổi", "改变")],
+         head=["Vui", "Buồn", "Thay đổi"], bgm="warm_gtr.mp3",
+         bg=[("coverr-sunset-in-indonesia-3381.mp4", 0.36),
+             ("coverr-sunrise-in-costa-rica-1299.mp4", 0.58),
+             ("coverr-desert-island-7521.mp4", 0.52)],
+         grade="saturation=0.66:brightness=0.034:contrast=1.20",
+         art="暖橘 ↔ 冷蓝，全片在两头之间来回。装置是「颜色自己在变」：词出现时是暖的，"
+             "停在画面上的过程中缓缓转冷，再转回暖；连墨罩也跟着一起呼吸。"
+             "这一集不用图形讲道理，它让画面自己变一遍给你看。"),
 ]
 
 
