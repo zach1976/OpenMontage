@@ -30,6 +30,7 @@ script.json 里需要的两块（都放在 metadata 下，schema 允许自由字
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
@@ -60,27 +61,54 @@ def probe(path: Path) -> float:
     return round(float(out.stdout.strip()), 3)
 
 
-def edge_say(text: str, voice: str, rate: str | None, raw: Path,
-             pitch: str | None = None) -> None:
-    """edge-tts 偶发 NoAudioReceived（微软端点抽风），重试三次。
-
-    rate / pitch 都用 `--rate=<v>` 这种等号写法——分开传过一次没拿到音频。
-    pitch 是 Hz 偏移（"-12Hz"）：edge-tts 的中文男声只有四个，
-    真正"沉稳"那一档要靠 Yunjian + 压调 + 降速 配出来，光换音色不够。
-    """
+def _run_edge(text: str, voice: str, raw: Path, rate: str | None,
+              pitch: str | None, tries: int = 3) -> str | None:
+    """跑一次 edge-tts，成功返回 None，失败返回最后一条 stderr。"""
     cmd = ["edge-tts", "--voice", voice, "--text", text, "--write-media", str(raw)]
     if rate and rate not in ("+0%", "0%"):
         cmd.insert(3, f"--rate={rate}")
     if pitch and pitch not in ("+0Hz", "0Hz"):
         cmd.insert(3, f"--pitch={pitch}")
     last = ""
-    for attempt in range(3):
+    for _ in range(tries):
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode == 0 and raw.exists() and raw.stat().st_size > 1000:
-            return
+            return None
         last = (r.stderr or "")[-200:]
         time.sleep(1.5)
-    raise RuntimeError(f"edge-tts 三次都失败：{last}")
+    return last
+
+
+def edge_say(text: str, voice: str, rate: str | None, raw: Path,
+             pitch: str | None = None) -> float:
+    """合成一段，返回**事后要补的变速倍率**（正常是 1.0）。
+
+    rate / pitch 都用 `--rate=<v>` 这种等号写法——分开传过一次没拿到音频。
+    pitch 是 Hz 偏移（"-12Hz"）：edge-tts 的中文男声只有四个，
+    真正"沉稳"那一档要靠 Yunjian + 压调 + 降速 配出来，光换音色不够。
+
+    **`--rate` 在某些音色上不稳定**（2026-09-10 实测泰语女声 PremwadeeNeural）：
+    同一句带 rate 失败、去掉就成，而同一个 rate 在泰语男声上一直正常；
+    连 `ค่ะ` 单独带 rate 也会失败，所以不是文本问题，是服务端偶发丢包，
+    带 rate 更容易踩中。这时**去掉 rate 重来，再用 ffmpeg 变速把语速补回去** ——
+    听感一致，不必为了一个抽风的参数把整批卡住。
+    （别靠加重试次数硬扛：那只会把限流窗口拉长。）
+    """
+    err = _run_edge(text, voice, raw, rate, pitch)
+    if err is None:
+        return 1.0
+    if rate and rate not in ("+0%", "0%"):
+        err2 = _run_edge(text, voice, raw, None, pitch)
+        if err2 is None:
+            try:
+                pct = float(rate.strip().rstrip("%"))
+            except ValueError:
+                pct = 0.0
+            tempo = max(0.5, min(2.0, 1.0 + pct / 100.0))
+            print(f"      （{voice} 带 rate={rate} 拿不到音频，改为常速合成 + 变速 {tempo:.2f}×）")
+            return tempo
+        err = err2
+    raise RuntimeError(f"edge-tts 失败：{err}")
 
 
 def main() -> int:
@@ -124,6 +152,28 @@ def main() -> int:
     audio = proj / "assets" / "audio"
     audio.mkdir(parents=True, exist_ok=True)
     durations: dict[str, float] = {}
+    failed: list[tuple[str, str, str]] = []
+
+    # 「已存在就跳过」原本只看文件在不在 —— 改了文案再跑，旧音频就这么活了下来，
+    # 而且听不出来（片子照常渲、校验器照常过，念的却是上一版的词）。
+    # 2026-09-11 在 song-06 上正中这一枪：钩子文案改掉「这一集」，渲出来还是旧的。
+    # 现在给每段存一个签名（音色+语速+音调+文本），对不上就删掉重合成。
+    sigp = proj / "artifacts" / "_tts_text.json"
+    old_sig: dict[str, str] = json.loads(sigp.read_text()) if sigp.exists() else {}
+    new_sig = {
+        u["id"]: hashlib.sha1(
+            f"{voices.get(u['lang'])}|{rates.get(u['lang'])}|{pitches.get(u['lang'])}|{u['text']}"
+            .encode()
+        ).hexdigest()[:12]
+        for u in units
+    }
+    stale = [u["id"] for u in units
+             if u["id"] in old_sig and old_sig[u["id"]] != new_sig[u["id"]]]
+    for uid in stale:
+        for p in (audio / f"{uid}_x.mp3", audio / f"{uid}_raw.mp3"):
+            p.unlink(missing_ok=True)
+    if stale:
+        print(f"文案有变，重新合成 {len(stale)} 段：{', '.join(stale)}")
 
     for u in units:
         lang = u["lang"]
@@ -140,10 +190,20 @@ def main() -> int:
             durations[u["id"]] = probe(final)
             print(f"  {u['id']:16} {durations[u['id']]:6.2f}s  已存在，跳过")
             continue
-        edge_say(u["text"], voice, rates.get(lang), raw, pitches.get(lang))
+        # 失败不中断整批。edge-tts 的端点会成片抽风（有时只有某一种语言挂掉），
+        # 一遇失败就 return 的话，本来能合成的那些也做不了，下次还得从头试。
+        # 现在把失败的攒起来，能做的先做完，最后报缺哪些 —— 再跑一次就只补缺口。
+        try:
+            tempo = edge_say(u["text"], voice, rates.get(lang), raw, pitches.get(lang))
+        except RuntimeError as e:
+            failed.append((u["id"], lang, str(e)[-60:]))
+            print(f"  {u['id']:16} ✗ {lang}  {str(e)[-50:]}")
+            continue
+        # 变速排在最前面：后面的 silenceremove/loudnorm 都按变速后的音频来算才对
+        af = TRIM_AND_NORM if tempo == 1.0 else f"atempo={tempo:.3f},{TRIM_AND_NORM}"
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw),
-             "-af", TRIM_AND_NORM, "-ar", "44100", "-b:a", "192k", str(final)],
+             "-af", af, "-ar", "44100", "-b:a", "192k", str(final)],
             check=True,
         )
         durations[u["id"]] = probe(final)
@@ -152,6 +212,9 @@ def main() -> int:
     (proj / "artifacts" / "_audio_durations.json").write_text(
         json.dumps(durations, indent=2), encoding="utf-8"
     )
+    # 只记合成成功的那些：失败的段下次仍然当作「没有」，不会被签名挡在门外
+    sigp.write_text(json.dumps({k: v for k, v in new_sig.items() if k in durations},
+                               ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 合成产物落在 assets/audio/，但 Remotion 合成读的是 composition/public/audio/。
     # 早先靠手动 cp 同步，改完文案忘了拷 —— 渲出来的片子旁白还是旧的，肉眼完全看不出。
@@ -185,6 +248,15 @@ def main() -> int:
         script_path.write_text(json.dumps(script, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"\nscript.json：{touched} 个 section 的 text 已按 tts_units 重拼")
 
+    if failed:
+        by_lang: dict[str, int] = {}
+        for _uid, lang, _e in failed:
+            by_lang[lang] = by_lang.get(lang, 0) + 1
+        print(f"\n⚠️  {len(durations)}/{len(units)} 段完成，缺 {len(failed)} 段："
+              + "、".join(f"{k} {v} 段" for k, v in by_lang.items()))
+        print("   端点抽风时某种语言会整片挂掉。**别加重试次数**（只会把窗口拉长），"
+              "隔一阵再跑一次即可 —— 已完成的会跳过，只补缺口。")
+        return 2
     print(f"\n合成完毕：{len(units)} 段，旁白总时长 {sum(durations.values()):.1f}s，费用 $0")
     return 0
 

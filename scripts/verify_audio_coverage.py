@@ -47,11 +47,22 @@ def main():
     bed = gv[len(gv)//2] if gv else None
 
     MARGIN = 6.0
-    dead = [(a, b, v) for (a, b), v in zip(speak, vals)
-            if v is None or (bed is not None and v - bed < MARGIN) or v < -45]
+    # 「比底噪高 6dB」只在底噪真的是垫乐时成立。神曲跟唱那一路的非旁白区间是
+    # **原曲本身**（量到 −18dB 上下），拿它当基线的话每一段旁白都比它高不出 6dB，
+    # 于是 52 段全被报成「没响」—— 旁白其实一段不缺（2026-09-10 夜舞加长版踩到）。
+    # 底噪一旦响过这个线，就说明它不是垫乐，改回固定阈值，并把话说清楚。
+    LOUD_BED = -28.0
+    loud_bed = bed is not None and bed > LOUD_BED
+    if loud_bed:
+        dead = [(a, b, v) for (a, b), v in zip(speak, vals) if v is None or v < -45]
+        crit = (f'底噪 {bed:.1f}dB 偏响，非旁白区间不是垫乐（多半是原曲/实拍同期声），'
+                f'相对判据失效，改用固定阈值 <-45dB')
+    else:
+        dead = [(a, b, v) for (a, b), v in zip(speak, vals)
+                if v is None or (bed is not None and v - bed < MARGIN) or v < -45]
+        crit = (f'比垫乐 {bed:.1f}dB 高不足 {MARGIN:.0f}dB' if bed is not None else '<-45dB')
     ok = sorted(v for v in vals if v is not None)
-    print(f'配音区间 {len(speak)} 段，没响 {len(dead)} 段'
-          + (f'（判据：比垫乐 {bed:.1f}dB 高不足 {MARGIN:.0f}dB）' if bed is not None else '（判据：<-45dB）'))
+    print(f'配音区间 {len(speak)} 段，没响 {len(dead)} 段（判据：{crit}）')
     if ok:
         print('  人声区间 mean_volume 中位数: %.1f dB (最低 %.1f / 最高 %.1f)' % (ok[len(ok)//2], ok[0], ok[-1]))
     if dead:

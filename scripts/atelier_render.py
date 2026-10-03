@@ -86,6 +86,8 @@ def main() -> int:
     ap.add_argument("--art", default="")
     ap.add_argument("--concurrency", type=int, default=0,
                     help="0=不指定；带视频底片的合成建议 2")
+    ap.add_argument("--use-existing", action="store_true",
+                    help="沿用项目已审批的 edit_decisions，不按通用卡片结构重建")
     a = ap.parse_args()
 
     proj = REPO / "projects" / a.project_id
@@ -96,8 +98,11 @@ def main() -> int:
     art = a.art
     if not art and ed_path.exists():
         art = json.loads(ed_path.read_text()).get("bespoke", {}).get("art_direction", "")
-    ed = build_edit_decisions(proj, a.composition_id, art or "（未填美术方向）", a.concurrency)
-    ed_path.write_text(json.dumps(ed, ensure_ascii=False, indent=2), encoding="utf-8")
+    if a.use_existing:
+        ed = json.loads(ed_path.read_text())
+    else:
+        ed = build_edit_decisions(proj, a.composition_id, art or "（未填美术方向）", a.concurrency)
+        ed_path.write_text(json.dumps(ed, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 音频要在 public/audio 下才被 staticFile 找到
     src, dst = proj / "assets/audio", proj / "composition/public/audio"
@@ -108,8 +113,10 @@ def main() -> int:
     from tools.video.video_compose import VideoCompose  # noqa: E402
     out = proj / "renders" / f"{a.out_name}.mp4"
     out.parent.mkdir(exist_ok=True)
+    proposal_path = proj / "artifacts/proposal_packet.json"
+    proposal = json.loads(proposal_path.read_text()) if proposal_path.exists() else None
     res = VideoCompose().execute({"operation": "render", "edit_decisions": ed,
-                                  "output_path": str(out)})
+                                  "proposal_packet": proposal, "output_path": str(out)})
     if not res.success:
         print("渲染失败：", res.error, file=sys.stderr); return 2
     print(f"✓ {out}  ({out.stat().st_size/1e6:.1f}MB)")

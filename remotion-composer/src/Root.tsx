@@ -16,6 +16,8 @@ import { ProductReveal, ProductRevealProps } from "./components/ProductReveal";
 import { CaptionOverlay, WordCaption } from "./components/CaptionOverlay";
 import { CollageBurst, CollageBurstProps } from "./CollageBurst";
 import { LyricOverlay, LyricOverlayProps } from "./LyricOverlay";
+import { ThaiDialogueSeries, ThaiDialogueSeriesProps } from "./ThaiDialogueSeries";
+import { ThaiLearningCards, ThaiLearningCardsProps } from "./ThaiLearningCards";
 
 // ---------------------------------------------------------------------------
 // Theme System — prevents every video from looking like dark fintech
@@ -135,6 +137,59 @@ const calculateMetadata: CalculateMetadataFunction<ExplainerProps> = async ({
 export const Root: React.FC = () => {
   return (
     <>
+      <Composition
+        id="ThaiLearningCards"
+        component={ThaiLearningCards}
+        durationInFrames={30 * 60}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          seriesName: "泰语千词 · 经典口头禅",
+          episode: "NO.01",
+          topic: "经典高频",
+          hook: "泰国人天天挂嘴边",
+          accent: "#1A8391",
+          accent2: "#F5C45A",
+          durationSeconds: 60,
+          coverEnd: 3,
+          outroStart: 56,
+          narrationSrc: "series/thai-learning/sample.wav",
+          musicSrc: "series/02/bgm.mp3",
+          mode: "grid",
+          items: [],
+        } as ThaiLearningCardsProps}
+        calculateMetadata={({props}) => ({durationInFrames: Math.round(props.durationSeconds * 30)})}
+      />
+      <Composition
+        id="ThaiDialogueSeries"
+        component={ThaiDialogueSeries}
+        durationInFrames={30 * 75}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{
+          episode: "NO.02",
+          topic: "餐厅结账",
+          hook: "吃完饭，怎么用泰语结账？",
+          exchangeLeft: "顾客问",
+          exchangeRight: "店员答",
+          durationSeconds: 75,
+          imageSrc: "series/02/main.png",
+          narrationSrc: "series/02/narration.wav",
+          musicSrc: "series/02/bgm.mp3",
+          dialogueIntroStart: 3.7,
+          dialogueStart: 5,
+          dialogueEnd: 16,
+          replayStart: 62,
+          replayEnd: 71,
+          outroStart: 71,
+          lines: [],
+          lessons: [],
+          speechRanges: [],
+        } as ThaiDialogueSeriesProps}
+        calculateMetadata={({props}) => ({durationInFrames: Math.round(props.durationSeconds * 30)})}
+      />
       <Composition
         id="Explainer"
         component={Explainer}

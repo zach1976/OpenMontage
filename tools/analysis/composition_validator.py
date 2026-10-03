@@ -155,6 +155,8 @@ class CompositionValidator(BaseTool):
 
         cuts = comp.get("cuts", [])
         audio = comp.get("audio", {})
+        is_atelier = comp.get("composition_mode") == "atelier"
+        bespoke = comp.get("bespoke", {}) if is_atelier else {}
 
         # --- Check 1: Cuts exist ---
         if not cuts:
@@ -181,12 +183,30 @@ class CompositionValidator(BaseTool):
                 )
 
         # --- Check 4: Asset files exist ---
+        if is_atelier:
+            for field in ("entry", "props_path", "public_dir"):
+                value = bespoke.get(field, "")
+                path = Path(value) if value else None
+                if path is None or not path.exists():
+                    errors.append(f"Missing atelier {field}: {value or '(not set)'}")
+            if not bespoke.get("composition_id"):
+                errors.append("Missing atelier composition_id")
+
         for cut in cuts:
             source = cut.get("source", "")
             if source:
-                asset_path = assets_root / source
-                if not asset_path.exists():
-                    errors.append(f"Missing asset: {source} (looked in {assets_root})")
+                if is_atelier and source.startswith("composition:"):
+                    declared_id = source.removeprefix("composition:").split("#", 1)[0]
+                    expected_id = bespoke.get("composition_id", "")
+                    if expected_id and declared_id != expected_id:
+                        errors.append(
+                            f"Atelier cut references composition {declared_id!r}, "
+                            f"but bespoke.composition_id is {expected_id!r}"
+                        )
+                else:
+                    asset_path = assets_root / source
+                    if not asset_path.exists():
+                        errors.append(f"Missing asset: {source} (looked in {assets_root})")
 
             bg_img = cut.get("backgroundImage", "")
             if bg_img:
@@ -237,7 +257,9 @@ class CompositionValidator(BaseTool):
                         )
 
         # --- Check 7: No audio at all ---
-        if not narration_src and not music_src:
+        if is_atelier and not narration_src and not music_src:
+            info.append("Audio is owned by the atelier composition and will be verified after render")
+        elif not narration_src and not music_src:
             warnings.append("No audio configured (no narration or music)")
 
         return self._result(errors, warnings, info, start)

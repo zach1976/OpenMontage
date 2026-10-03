@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -71,10 +72,12 @@ def collect_versions(proj: Path) -> list[dict]:
     for mp4 in mp4s:
         info = probe(mp4)
         label = mp4.stem[len(prefix):].lstrip("_-") or "初版"
+        version_match = re.search(r"(?:^|[_-])v(\d+)$", mp4.stem, re.IGNORECASE)
         out.append({
             "file": f"renders/{mp4.name}",
             "name": mp4.stem,
             "label": label,
+            "display_version": f"V{version_match.group(1)}" if version_match else label,
             "duration": info.get("duration"),
             "size_mb": round(info["size"] / 1e6, 1) if info.get("size") else None,
             "res": f"{info['w']}x{info['h']}" if info.get("w") else None,
@@ -92,6 +95,71 @@ def collect_scenes(props: dict | None, script: dict | None) -> list[dict]:
         narration[sec["id"]] = sec.get("text", "")
 
     scenes = []
+
+    # 神曲跟唱那一路（props.blocks）不是卡片式结构，早先整条时间轴是空的，
+    # 3 分钟 40 个区块只能靠拖进度条审。这里按 block.kind 铺成场景条。
+    if isinstance(props.get("blocks"), list) and props["blocks"]:
+        KIND = {"hook": "片头 · 第一帧", "nar": "释义", "sing": "原唱", "say": "释义",
+                "echo": "原声跟读", "word": "词卡", "full": "连唱", "chain": "连读",
+                "rule": "规则", "line": "例句", "close": "收束", "outro": "片尾"}
+        n_word = n_line = 0
+        lesson_lines = {b.get("seq"): b for b in props["blocks"] if b.get("kind") == "say"}
+        for i, b in enumerate(props["blocks"]):
+            k = b.get("kind", "")
+            sid = {"hook": "s00_hook", "outro": "s99_outro"}.get(k) or f"s_{b.get('lineId') or k}"
+            if k == "word":
+                n_word += 1
+                label = f"词卡 {n_word:02d} · {b.get('zh','')}"
+                title = b.get("w", "")
+                sub = "泰语示范 → 中文义" if props.get("lessonAudioMode") == "tts" else "歌里原声 → 中文义"
+                native = b.get("w", "")
+            elif k == "say":
+                label = f"释义 · 第 {b.get('seq', 0) + 1} 句"
+                title, sub, native = b.get("zh", ""), b.get("th", ""), b.get("th", "")
+            elif k == "echo":
+                line = lesson_lines.get(b.get("seq"), {})
+                label = "泰语跟读" if props.get("lessonAudioMode") == "tts" else "原声跟读"
+                title, sub, native = line.get("zh", ""), line.get("th", ""), line.get("th", "")
+            elif k == "chain":
+                label = "慢速复习" if b.get("slow") else "常速复习"
+                title = " / ".join(l.get("zh", "") for l in b.get("lines", []))
+                sub = " / ".join(l.get("th", "") for l in b.get("lines", []))
+                native = sub
+            elif k == "full":
+                label = KIND[k]
+                lines = b.get("lines") or []
+                title = f"{len(lines)} 句连唱 {b.get('songDur', 0):.1f}s"
+                sub = " / ".join(l.get("zh", "") for l in lines)
+                native = "　".join(l.get("vi", "") for l in lines)
+            elif k in ("nar", "sing"):
+                label = f"{KIND[k]} · {b.get('lineId','')}"
+                title, sub, native = b.get("zh", ""), b.get("vi", ""), b.get("vi", "")
+            elif k == "line":
+                # 例句块：每条都要有自己的编号和内容，否则时间轴上是一排同名空条
+                n_line += 1
+                sid = f"s_s{b.get('idx', n_line-1):02d}"
+                label = f"例句 {n_line:02d} · {b.get('zh','')}"
+                title = b.get("stem", "")
+                sub = f"{'疑问句' if b.get('q') else '陈述句'}　男 …ครับ / 女 …{b.get('fem','')}"
+                native = b.get("stem", "")
+            elif k in ("rule", "close"):
+                label = KIND[k]
+                title = "男 ครับ / 女 ค่ะ・คะ" if k == "rule" else "听句尾就知道说话的是谁"
+                sub, native = "", ""
+            elif k == "hook":
+                label, title = KIND[k], f"{b.get('title','')} {b.get('titleZh','')}".strip()
+                sub, native = b.get("tasteLine", ""), b.get("title", "")
+            else:
+                label, title = KIND.get(k, k), b.get("line2", "")
+                sub, native = b.get("cta", ""), ""
+            scenes.append({
+                "id": sid, "label": label, "thai": native,
+                "start": b["start"], "end": round(b["start"] + b["dur"], 2),
+                "title": title, "sub": sub,
+                "text": narration.get(sid, ""), "credit": "",
+            })
+        return scenes
+
     hook = props.get("hook")
     if hook:
         # 片头这一屏历经三种结构：四行递进 lines[] → 标题卡 line1/line2 →
@@ -173,6 +241,48 @@ def collect_scenes(props: dict | None, script: dict | None) -> list[dict]:
     return scenes
 
 
+def build_review_copy_html(data: dict | None) -> str:
+    """联合审核项目可提供逐集文案，避免审片页只有视频而没有可核对文本。"""
+    episodes = (data or {}).get("episodes") or []
+    if not episodes:
+        return ""
+    e = lambda s: html.escape(str(s if s is not None else ""))
+    cards = []
+    for ep in episodes:
+        dialogue = "".join(
+            '<li><b>{role}</b><span class="copy-th thai">{th}</span>'
+            '<span class="copy-rom">谐音：{rom}</span><span class="copy-zh">{zh}</span></li>'.format(
+                role=e(line.get("role")), th=e(line.get("th")),
+                rom=e(line.get("rom")), zh=e(line.get("zh")),
+            )
+            for line in ep.get("dialogue", [])
+        )
+        lessons = []
+        for lesson in ep.get("analysis", []):
+            words = "".join(
+                f'<span class="word"><b class="thai">{e(w.get("th"))}</b>{e(w.get("zh"))}</span>'
+                for w in lesson.get("words", [])
+            )
+            lessons.append(
+                f'<div class="copy-lesson"><b>{e(lesson.get("title"))}</b>'
+                f'<div class="copy-sentence thai">{e(lesson.get("sentence"))}</div>'
+                f'<div class="words">{words}</div>'
+                f'<div class="copy-note">{e(lesson.get("note"))}</div></div>'
+            )
+        cards.append(
+            f'<details class="copy-episode" open><summary>'
+            f'<b>{e(ep.get("episode"))} · {e(ep.get("title"))}</b>'
+            f'<span>{e(ep.get("hook"))}</span></summary>'
+            f'<div class="copy-body"><h3>开场</h3><p>{e(ep.get("hook"))}</p>'
+            f'<h3>完整对话</h3><ol class="copy-dialogue">{dialogue}</ol>'
+            f'<h3>逐词分析</h3>{"".join(lessons)}'
+            f'<h3>复听</h3><p>{e(ep.get("replay"))}</p></div></details>'
+        )
+    return ('<section class="block"><h2>具体文案 · 逐集核对</h2>'
+            '<p class="hint">开场、完整对话、逐词分析与复听内容均列在这里。</p>'
+            + "".join(cards) + '</section>')
+
+
 # 审核清单：前几条来自本产线反复踩过的坑，最后几条是每条片都要过的通用项。
 CHECKS = [
     ("frame0", "第一帧可直接当封面", "平台抓第一帧做缩略图——第一帧必须是排好版的成品，不能是动画起始的空屏"),
@@ -233,6 +343,13 @@ def build_html(ctx: dict) -> str:
     color: var(--gold); font-weight: 700;
   }}
   .hdr-meta {{ margin-left: auto; color: var(--ink-dim); font-size: 13px; }}
+  .review-version {{
+    display: inline-flex; align-items: baseline; gap: 10px;
+    padding: 8px 14px; border: 1px solid var(--gold); border-radius: 999px;
+    background: rgba(201,162,75,.13); color: var(--gold-lift);
+    font-size: 13px; font-weight: 600; letter-spacing: .05em;
+  }}
+  .review-version strong {{ color: #FFF2C7; font-size: 21px; line-height: 1; }}
 
   .cols {{ display: grid; grid-template-columns: minmax(320px, 460px) 1fr; gap: 28px; padding: 24px 28px 60px; align-items: start; }}
   @media (max-width: 900px) {{ .cols {{ grid-template-columns: 1fr; }} }}
@@ -287,6 +404,26 @@ def build_html(ctx: dict) -> str:
   .scene .nar {{ color: var(--ink-dim); font-size: 12.5px; margin-top: 4px; }}
   .scene .cr {{ color: var(--ink-dim); font-size: 11px; margin-top: 3px; opacity: .8; }}
 
+  .copy-episode {{ border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-bottom: 12px; overflow: hidden; }}
+  .copy-episode summary {{ cursor: pointer; padding: 14px 16px; display: flex; gap: 14px; justify-content: space-between; align-items: baseline; }}
+  .copy-episode summary b {{ color: var(--gold-lift); }}
+  .copy-episode summary span {{ color: var(--ink-soft); font-size: 13px; }}
+  .copy-body {{ padding: 0 16px 17px; border-top: 1px solid var(--line); }}
+  .copy-body h3 {{ margin: 16px 0 7px; color: var(--ink-dim); font-size: 11px; letter-spacing: .14em; }}
+  .copy-body p {{ margin: 0; }}
+  .copy-dialogue {{ margin: 0; padding-left: 22px; }}
+  .copy-dialogue li {{ margin: 9px 0; }}
+  .copy-dialogue li > span {{ display: block; }}
+  .copy-th {{ color: var(--gold-lift); font-size: 19px; }}
+  .copy-rom {{ color: var(--ink-dim); font-size: 12px; }}
+  .copy-zh {{ color: var(--ink-soft); }}
+  .copy-lesson {{ padding: 11px 12px; margin: 8px 0; border-radius: 8px; background: var(--panel-2); }}
+  .copy-sentence {{ color: var(--gold-lift); font-size: 18px; margin-top: 5px; }}
+  .words {{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }}
+  .word {{ display: inline-flex; gap: 7px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink-soft); font-size: 12px; }}
+  .word b {{ color: var(--ink); }}
+  .copy-note {{ color: var(--ink-soft); margin-top: 8px; font-size: 13px; }}
+
   /* 清单 */
   .check {{ display: flex; gap: 11px; padding: 10px 8px; border-bottom: 1px solid var(--line); align-items: flex-start; }}
   .check input {{ margin-top: 4px; width: 17px; height: 17px; accent-color: var(--ok); flex: none; }}
@@ -316,6 +453,14 @@ def build_html(ctx: dict) -> str:
   .cf .cnt {{ font-size:12px; color:var(--ink-dim); text-align:right; font-variant-numeric:tabular-nums; }}
   .cf.over input {{ border-color:var(--bad); }}
   .cf.over .cnt {{ color:var(--bad); font-weight:600; }}
+  .tf {{ margin-bottom: 14px; padding: 13px 14px; border: 1px solid var(--line);
+         border-radius: 9px; background: rgba(19,35,61,.55); }}
+  .tf-head {{ display:flex; justify-content:space-between; gap:12px; margin-bottom:7px; }}
+  .tf label {{ color:var(--gold-lift); font-size:13px; font-weight:600; }}
+  .tf .cnt {{ color:var(--ink-dim); font-size:12px; font-variant-numeric:tabular-nums; }}
+  .tf textarea {{ min-height: 66px; background:var(--panel-2); }}
+  .tf.over {{ border-color:var(--bad); }}
+  .tf.over .cnt {{ color:var(--bad); font-weight:600; }}
   .alts {{ margin:12px 0 4px; }}
   .alts .lb {{ font-size:12px; letter-spacing:.12em; color:var(--ink-dim); margin-bottom:8px; }}
   .alts .chips {{ display:flex; flex-wrap:wrap; gap:8px; }}
@@ -358,6 +503,7 @@ def build_html(ctx: dict) -> str:
 <body>
 
 <header>
+  <div class="review-version">当前审核版本 <strong id="reviewVersion">{e(ctx['latest_version'])}</strong></div>
   <div>
     <div class="eyebrow">审片台</div>
     <h1>{e(ctx['title'])}</h1>
@@ -393,10 +539,24 @@ def build_html(ctx: dict) -> str:
       </div>
     </section>
 
+    <section class="block" id="textBlock" hidden>
+      <h2>全片文案 · 可直接改</h2>
+      <p class="hint">旁白、中文意思、谐音都可以在这里改；<b>泰文原句不在其列</b>——那是歌词，不能动。
+        超出建议字数会标红。改完点「复制全片文案」贴回对话，我用 <code>apply_text_fields.py</code> 写回去重渲。</p>
+      <div id="textFields"></div>
+      <div class="row">
+        <button class="btn primary" id="copyTextBtn">复制全片文案</button>
+        <button class="btn" id="resetTextBtn">还原成当前成片的文案</button>
+        <span class="st" id="textStat"></span>
+      </div>
+    </section>
+
     <section class="block">
       <h2>时间轴 · 点击跳转</h2>
       <div id="scenes"></div>
     </section>
+
+    {ctx['copy_html']}
 
     <section class="block">
       <h2>审核清单</h2>
@@ -434,6 +594,7 @@ def build_html(ctx: dict) -> str:
   var KEY      = "review:" + {j(ctx['project_id'])};
   var PROJECT_ID = {j(ctx['project_id'])};
   var COVER_SRC  = {j(ctx['cover_text'])};
+  var TEXT_SRC   = {j(ctx['text_fields'])};
   var COVER_ALTS = {j(ctx['cover_alts'])};
 
   var v = document.getElementById("v");
@@ -468,6 +629,8 @@ def build_html(ctx: dict) -> str:
   }});
   function setVersion(file) {{
     state.version = file;
+    var selectedVersion = VERSIONS.find(function (ver) {{ return ver.file === file; }});
+    document.getElementById("reviewVersion").textContent = selectedVersion ? selectedVersion.display_version : "—";
     var t = v.currentTime;
     v.src = file;
     v.addEventListener("loadedmetadata", function once() {{
@@ -665,6 +828,69 @@ def build_html(ctx: dict) -> str:
     paintCover(); paintAlts(); flashCover("已还原成当前成片的文案");
   }});
 
+  // ── 全片文案编辑 ───────────────────────────────────────────────────
+  // 由 build_props.py 导出的 artifacts/text_fields.json 驱动：有这个文件就渲面板，
+  // 没有就整块隐藏。**原文（泰文/越南文歌词句）不在字段里**——那不该在页面上被改。
+  if (TEXT_SRC && TEXT_SRC.length) {{
+    document.getElementById("textBlock").hidden = false;
+    var TKEY = KEY + ":text";
+    var tState = {{}};
+    TEXT_SRC.forEach(function (f) {{ tState[f.key] = f.value; }});
+    try {{
+      var ts = JSON.parse(localStorage.getItem(TKEY) || "null");
+      if (ts) TEXT_SRC.forEach(function (f) {{ if (ts[f.key] != null) tState[f.key] = ts[f.key]; }});
+    }} catch (e) {{}}
+
+    var tWrap = document.getElementById("textFields");
+    function paintText() {{
+      tWrap.innerHTML = "";
+      TEXT_SRC.forEach(function (f) {{
+        var row = document.createElement("div"); row.className = "tf";
+        var head = document.createElement("div"); head.className = "tf-head";
+        var lb = document.createElement("label"); lb.textContent = f.label;
+        lb.setAttribute("for", "tf_" + f.key);
+        var inp = document.createElement("textarea");
+        inp.id = "tf_" + f.key; inp.value = tState[f.key];
+        var cnt = document.createElement("div"); cnt.className = "cnt";
+        function upd() {{
+          var n = vlen(inp.value);
+          cnt.textContent = n + " / " + f.limit;
+          row.classList.toggle("over", n > f.limit);
+        }}
+        inp.addEventListener("input", function () {{
+          tState[f.key] = inp.value; upd();
+          try {{ localStorage.setItem(TKEY, JSON.stringify(tState)); }} catch (e) {{}}
+        }});
+        upd();
+        head.appendChild(lb); head.appendChild(cnt);
+        row.appendChild(head); row.appendChild(inp);
+        tWrap.appendChild(row);
+      }});
+    }}
+    paintText();
+
+    function flashText(msg) {{
+      var el = document.getElementById("textStat");
+      el.textContent = msg; setTimeout(function () {{ el.textContent = ""; }}, 2600);
+    }}
+    document.getElementById("copyTextBtn").addEventListener("click", function () {{
+      var out = {{}};
+      TEXT_SRC.forEach(function (f) {{ if (tState[f.key] !== f.value) out[f.key] = tState[f.key]; }});
+      var payload = JSON.stringify({{project: PROJECT_ID, fields: out}}, null, 1);
+      var n = Object.keys(out).length;
+      if (navigator.clipboard && navigator.clipboard.writeText) {{
+        navigator.clipboard.writeText(payload).then(
+          function () {{ flashText(n ? ("已复制 " + n + " 条改动，贴回对话") : "没有改动"); }},
+          function () {{ flashText("复制失败，手动选中下面的框"); }});
+      }} else {{ flashText("浏览器不支持自动复制"); }}
+    }});
+    document.getElementById("resetTextBtn").addEventListener("click", function () {{
+      TEXT_SRC.forEach(function (f) {{ tState[f.key] = f.value; }});
+      try {{ localStorage.removeItem(TKEY); }} catch (e) {{}}
+      paintText(); flashText("已还原成当前成片的文案");
+    }});
+  }}
+
   document.getElementById("copyBtn").addEventListener("click", function () {{
     var failed = CHECKS.filter(function (c) {{ return !state.checks[c[0]]; }});
     var lines = ["审片：" + state.version];
@@ -708,6 +934,7 @@ def main() -> int:
     props = load(proj / "composition" / "props.json")
     script = load(proj / "artifacts" / "script.json")
     decisions = load(proj / "artifacts" / "decision_log.json") or []
+    review_copy = load(proj / "artifacts" / "review_copy.json") or {}
 
     versions = collect_versions(proj)
     if not versions:
@@ -813,11 +1040,15 @@ def main() -> int:
         "title": marker.get("title", args.project_id),
         "project_id": args.project_id,
         "versions": versions,
+        "latest_version": versions[0].get("display_version") or versions[0].get("label") or "—",
         "scenes": scenes,
         "checks": CHECKS,
         # 封面文案的当前值：props.json 里 hook 上真正在用的那份
         "cover_alts": (lambda f: json.loads(f.read_text()) if f.exists() else [])
                       (proj / "artifacts" / "cover_alts.json"),
+        # 全片文案：build_props.py 导出的可改字段（泰文/越南文原句不在其列——那是歌词）
+        "text_fields": json.loads((proj / "artifacts" / "text_fields.json").read_text())
+                       if (proj / "artifacts" / "text_fields.json").exists() else [],
         "cover_text": (lambda h: {
             "badge": h.get("badge") or (h.get("cover") or {}).get("badge") or "",
             **{k: ((" · ".join(v) if isinstance(v, list) else (v or ""))
@@ -826,6 +1057,7 @@ def main() -> int:
         })(props.get("hook") or {}),
         "facts_html": facts_html,
         "decisions_html": decisions_html,
+        "copy_html": build_review_copy_html(review_copy),
         "verify_html": verify_html,
         "warn_html": warn_html,
     })

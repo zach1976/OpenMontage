@@ -40,6 +40,13 @@ SERIES = {1: (LANG1000 / "marketing" / "video", "泰语千词"),
 # sub_series → 落哪个子目录
 SUBDIR = {"泰国小名": "series_nickname", "泰国人的英文名": "series_nickname",
           "怎么称呼": "series_nickname", "高频词": "series_high_freq_word",
+          "情景对话": "series_dialogue",
+          "经典口头禅": "series_catchphrase", "紧急应急": "series_emergency",
+          "泰国美食": "series_food",
+          "趣味泰语": "series_funny",
+          "听力测验": "series_listening_quiz", "场景短句": "series_scene_phrase",
+          "招牌识字": "series_signboard", "数数": "series_numbers",
+          "怎么称呼": "series_nickname", "泰国人的英文名": "series_nickname",
           "禅意一句": "series_zen", "泰语谚语": "series_zen",
           "越南名字": "series_viet_name", "越南称呼": "series_viet_name",
           "越南美食": "series_food", "越南语神曲": "series_song",
@@ -64,6 +71,8 @@ def latest_mp4(proj: Path) -> Path | None:
 
 
 def main() -> int:
+    only_episode = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only-episode=")), "")
+    only_episodes = {x.strip() for x in only_episode.split(",") if x.strip()}
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     dry = "--dry-run" in sys.argv[1:]
 
@@ -72,7 +81,12 @@ def main() -> int:
         if not d.is_dir() or (args and d.name not in args):
             continue
         pj = d / "artifacts" / "publish.json"
-        if pj.exists():
+        batch = d / "artifacts" / "publish_batch.json"
+        if batch.exists():
+            payload = json.loads(batch.read_text())
+            metas.extend((d, item) for item in payload.get("episodes", [])
+                         if not only_episodes or item.get("episode_id") in only_episodes)
+        elif pj.exists():
             metas.append((d, json.loads(pj.read_text())))
     if not metas:
         print("没有带 artifacts/publish.json 的项目", file=sys.stderr)
@@ -86,9 +100,12 @@ def main() -> int:
 
     ok = fail = 0
     for proj, m in metas:
-        mp4 = latest_mp4(proj)
+        configured_video = m.get("video_path")
+        mp4 = (proj / configured_video).resolve() if configured_video else latest_mp4(proj)
         if mp4 is None:
             print(f"  ✗ {proj.name}  没有成片"); fail += 1; continue
+        if not mp4.exists():
+            print(f"  ✗ {proj.name}  成片不存在: {mp4}"); fail += 1; continue
         root, account = SERIES[m["series_id"]]
         dest = root / SUBDIR_BY_SERIES.get(
             (int(m["series_id"]), m["sub_series"]),
@@ -101,10 +118,15 @@ def main() -> int:
 
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(mp4, out_mp4)
-        # 封面现抽第 0 帧：平台拿的就是这一帧，静态 cover.jpg 会跟成片漂开
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp4),
-                        "-vf", "select=eq(n\\,0)", "-frames:v", "1", "-q:v", "2",
-                        str(out_cover)], check=True)
+        # 批量项目可传入已审核的首帧封面；普通项目仍从最终成片现抽第 0 帧。
+        configured_cover = m.get("cover_path")
+        cover_source = (proj / configured_cover).resolve() if configured_cover else None
+        if cover_source and cover_source.exists():
+            shutil.copy2(cover_source, out_cover)
+        else:
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp4),
+                            "-vf", "select=eq(n\\,0)", "-frames:v", "1", "-q:v", "2",
+                            str(out_cover)], check=True)
 
         data = {"series_id": str(m["series_id"]), "normalized_title": m["slug"],
                 "title": m["title"], "sub_series": m["sub_series"],
@@ -122,11 +144,21 @@ def main() -> int:
                   f"cover={'yes' if j.get('cover_url') else 'no'}")
             log = proj / "artifacts" / "publish_log.json"
             entries = (json.loads(log.read_text()).get("entries") if log.exists() else []) or []
-            entries.insert(0, {"platform": "videopublisher", "status": "pending_review",
-                               "video_id": j["video_id"], "slug": m["slug"],
-                               "source_mp4": mp4.name,
-                               "timestamp": datetime.now(timezone.utc).isoformat()})
-            log.write_text(json.dumps({"version": "1.0", "entries": entries},
+            hashtags = re.findall(r"#[^\s#]+", m.get("publish_copy", ""))
+            entries.insert(0, {
+                "platform": "videopublisher", "status": "pending_review",
+                "video_id": str(j["video_id"]), "export_path": str(out_mp4.resolve()),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "metadata_used": {
+                    "title": m["title"],
+                    "description": m.get("publish_copy", ""),
+                    "hashtags": hashtags,
+                },
+            })
+            log.write_text(json.dumps({"version": "1.0", "entries": entries,
+                                       "metadata": {"slug": m["slug"],
+                                                    "source_mp4": mp4.name,
+                                                    "cover_mode": "uploaded_and_bound"}},
                                       ensure_ascii=False, indent=2), encoding="utf-8")
             ok += 1
         else:
