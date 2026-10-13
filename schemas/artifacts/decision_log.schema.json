@@ -38,6 +38,8 @@
               "motion_commitment",
               "concept_selection",
               "voice_selection",
+              "narration_architecture",
+              "pacing",
               "capability_extension",
               "playbook_override",
               "visual_accuracy_check",

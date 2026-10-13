@@ -90,6 +90,8 @@ def collect_scenes(props: dict | None, script: dict | None) -> list[dict]:
     """时间轴 = 可点击跳转的场景条。旁白正文从 script.json 里按 section id 对上。"""
     if not props:
         return []
+    if isinstance(props.get("review_timeline"), list):
+        return props["review_timeline"]
     narration = {}
     for sec in (script or {}).get("sections", []):
         narration[sec["id"]] = sec.get("text", "")
@@ -1012,7 +1014,7 @@ def main() -> int:
             except Exception:
                 pass
         if poster.exists():
-            poster_attr = ' poster="artifacts/_poster.jpg"'
+            poster_attr = f' poster="artifacts/_poster.jpg?v={newest.stat().st_mtime_ns}"'
 
     # 陈旧告警：script.json 比 props.json 旧，说明改了文案没回写脚本artifact，
     # 页面上显示的旁白就会是几个版本之前的（这个坑真踩过）。

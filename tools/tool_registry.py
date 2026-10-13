@@ -275,8 +275,16 @@ class ToolRegistry:
             if cap not in menu:
                 menu[cap] = {"available": [], "unavailable": [], "total": 0, "configured": 0}
 
-            info = tool.get_info()
-            status = tool.get_status()
+            try:
+                info = tool.get_info()
+                status = tool.get_status()
+                status_error = None
+            except Exception as exc:
+                # An optional provider with a broken local dependency must not
+                # prevent preflight from reporting the other providers.
+                info = {}
+                status = ToolStatus.UNAVAILABLE
+                status_error = f"{type(exc).__name__}: {exc}"
             entry = {
                 "name": tool.name,
                 "provider": tool.provider,
@@ -286,6 +294,8 @@ class ToolRegistry:
                 "install_instructions": tool.install_instructions,
                 "status": status.value,
             }
+            if status_error:
+                entry["status_error"] = status_error
             for extra_key in (
                 "source_provider_menu",
                 "source_provider_summary",

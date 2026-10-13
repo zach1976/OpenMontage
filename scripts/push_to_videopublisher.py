@@ -41,16 +41,19 @@ SERIES = {1: (LANG1000 / "marketing" / "video", "泰语千词"),
 SUBDIR = {"泰国小名": "series_nickname", "泰国人的英文名": "series_nickname",
           "怎么称呼": "series_nickname", "高频词": "series_high_freq_word",
           "情景对话": "series_dialogue",
+          "情侣泰语": "series_couple",
+          "情侣越南语": "series_couple",
           "经典口头禅": "series_catchphrase", "紧急应急": "series_emergency",
           "泰国美食": "series_food",
-          "趣味泰语": "series_funny",
+          "趣味泰语": "series_funny", "趣味越南语": "series_funny",
           "听力测验": "series_listening_quiz", "场景短句": "series_scene_phrase",
           "招牌识字": "series_signboard", "数数": "series_numbers",
           "怎么称呼": "series_nickname", "泰国人的英文名": "series_nickname",
           "禅意一句": "series_zen", "泰语谚语": "series_zen",
           "越南名字": "series_viet_name", "越南称呼": "series_viet_name",
           "越南美食": "series_food", "越南语神曲": "series_song",
-           "泰语神曲": "series_song", "神曲跟唱": "series_song"}
+           "泰语神曲": "series_song", "神曲跟唱": "series_song",
+          "教材带货": "series_textbook"}
 # 少数子系列在两个号下的目录名不一样 —— 越南语那边高频词的老目录叫 series_high_freq
 # （没有 _word 后缀），跟着老目录走，别新开一个平行目录。
 SUBDIR_BY_SERIES = {(2, "高频词"): "series_high_freq"}
@@ -128,10 +131,35 @@ def main() -> int:
                             "-vf", "select=eq(n\\,0)", "-frames:v", "1", "-q:v", "2",
                             str(out_cover)], check=True)
 
+        # 标题规则（2026-10-12 用户指令，对齐视频号短标题）：只许中文+数字，无符号/emoji/泰文/越南文，6–16 字。
+        # dashboard 拿 publish_copy 第一行当视频号/小红书标题，所以 title 字段和文案首行都要合规；
+        # wechat_copy（视频号一行式）= 标题 + 非泰文的 #标签。不合规又洗不干净的，直接拒绝入库。
+        def _clean(t: str) -> str:
+            t = re.sub(r"[\u0E00-\u0E7F]+|[A-Za-zÀ-ỹ]+", "", t or "")
+            return re.sub(r"[^\u4e00-\u9fff0-9]", "", t)
+        _ok = lambda t: bool(re.fullmatch(r"[\u4e00-\u9fff0-9]{6,16}", t or ""))
+        _title = m["title"] if _ok(m["title"]) else _clean(m["title"])
+        if not _ok(_title):
+            print(f"  ✗ {m['slug']}  标题不合规（只许中文数字 6–16 字）：{m['title']!r}", file=sys.stderr)
+            fail += 1
+            continue
+        m["title"] = _title
+        _copy = (m.get("publish_copy") or "").strip()
+        if _copy.split("\n")[0].strip() != _title:
+            m["publish_copy"] = _title + "\n" + _copy
+        _tags = " ".join(t for t in re.findall(r"#[^\s#]+", m["publish_copy"]) if not re.search(r"[\u0E00-\u0E7F]", t))
+        m["wechat_copy"] = (_title + " " + _tags).strip()
+        # 带货片入库必须带「带货」标签（2026-10-12 用户指令）：文案里补 #带货，idea_notes 以【带货】开头
+        if "带货" in m.get("sub_series", ""):
+            if "#带货" not in m.get("publish_copy", ""):
+                m["publish_copy"] = m.get("publish_copy", "").rstrip() + " #带货"
+            if not m.get("idea_notes", "").startswith("【带货】"):
+                m["idea_notes"] = "【带货】" + m.get("idea_notes", "")
         data = {"series_id": str(m["series_id"]), "normalized_title": m["slug"],
                 "title": m["title"], "sub_series": m["sub_series"],
                 "publish_copy": m.get("publish_copy", ""),
                 "wechat_copy": m.get("wechat_copy", ""),
+                "idea_notes": m.get("idea_notes", ""),
                 "file_path": str(out_mp4.resolve()), "stage": "ready"}
         with open(out_cover, "rb") as fh:
             r = requests.post(f"{base}/api/videos/upsert", data=data,
