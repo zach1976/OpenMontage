@@ -17,13 +17,50 @@ export const SeriesCtx=React.createContext<Series>({brand:"泰语千词 · 跟�
 export const VI="VietBold, Helvetica Neue, sans-serif";
 export const VI_SERIES:Series={brand:"越南语千词 · 跟着教材学",app:"学越南语字母",appSub:"29 个字母 跟着练",icon:"app/viet_alpha_icon.png",app2:"越南语千词",app2Sub:"1000 个常用词 背单词",icon2:"app/viet_qianci_icon.png"};
 
-export const Brand:React.FC<{color:string;top?:number}>=({color,top=270})=>{const c=React.useContext(SeriesCtx);return <div style={{position:"absolute",top,left:0,right:0,textAlign:"center",fontFamily:ZH,fontSize:32,fontWeight:700,letterSpacing:4,color}}>{c.brand}</div>;};
+export const Brand:React.FC<{color:string;top?:number}>=({color,top=270})=>{const c=React.useContext(SeriesCtx);return <div style={{position:"absolute",top,left:0,right:0,textAlign:"center",fontFamily:ZH,fontSize:40,fontWeight:800,letterSpacing:4,color}}>{c.brand}</div>;};
 
 export const Layer:React.FC<{s:SceneT;t:number;first?:boolean;children:React.ReactNode}>=({s,t,first,children})=>{
   if(t<s.start-0.01||t>=s.end+0.3)return null;
   const o=Math.min(first?1:interpolate(t,[s.start,s.start+0.27],[0,1],cl),interpolate(t,[s.end,s.end+0.27],[1,0],cl));
-  return <AbsoluteFill style={{opacity:o}}>{children}</AbsoluteFill>;
+  // 2026-11 美化（ChatGPT 稿）：正文场景放到「书桌上的一页教材」里。封面（第一帧）与片尾不套。
+  if(s.id==="cover"||s.id==="end")return <AbsoluteFill style={{opacity:o}}>{children}</AbsoluteFill>;
+  return <AbsoluteFill style={{opacity:o}}><Desk snap={s.id!=="book"}>{children}</Desk></AbsoluteFill>;
 };
+
+/* ── 书桌外壳：桌面 + 垫底教材 + 纸（=原场景缩 0.9）+ 长尾夹 + 铅笔 + 叶影 ──
+   纸的颜色就是这一集原来的背景色，所以各集的配色与对比度不变（深色集自然是深色纸）。 */
+export const DeskCtx=React.createContext<{desk:string;deskDark:string;book:string}>({desk:"#9A8670",deskDark:"#5B4B3E",book:"#8E3B34"});
+const PX=54,PY=112,PW=972,PH=1728,K=0.9;
+const Clip:React.FC=()=><svg width="112" height="95" viewBox="0 0 112 95" style={{position:"absolute",left:PX+70,top:PY-52,transform:"rotate(-3deg)",filter:"drop-shadow(4px 7px 4px #2D211C55)"}}>
+  <path d="M27 43 V18 C27 -4 85 -4 85 18 V43" fill="none" stroke="#D7AB64" strokeWidth="8"/>
+  <rect x="8" y="40" width="96" height="45" rx="4" fill="#BA8C49" stroke="#765225" strokeWidth="3"/>
+  <path d="M14 47 H98" stroke="#FBE1A3" strokeWidth="4" opacity=".75"/></svg>;
+const Pencil:React.FC=()=><div style={{position:"absolute",left:-40,top:1835,width:360,height:26,transform:"rotate(-12deg)",transformOrigin:"left center",filter:"drop-shadow(4px 7px 6px #30211D55)"}}>
+  <div style={{position:"absolute",left:0,top:0,width:0,height:0,borderTop:"13px solid transparent",borderBottom:"13px solid transparent",borderRight:"40px solid #DDBD8B"}}/>
+  <div style={{position:"absolute",left:0,top:9,width:0,height:0,borderTop:"4px solid transparent",borderBottom:"4px solid transparent",borderRight:"13px solid #33302F"}}/>
+  <div style={{position:"absolute",left:40,top:0,width:320,height:26,borderRadius:3,background:"linear-gradient(180deg,#C75D51 0%,#A84540 45%,#7F302E 100%)"}}/></div>;
+const Leaf:React.FC=()=><svg width="380" height="400" viewBox="0 0 380 400" style={{position:"absolute",right:-60,top:-30,opacity:.2,filter:"blur(16px)"}}>
+  <path d="M330 -20 C270 110 180 160 105 240" stroke="#2E3B26" strokeWidth="13" fill="none"/>
+  <path d="M258 80 Q160 25 162 -45 Q245 -5 258 80Z" fill="#2E3B26"/><path d="M210 142 Q95 90 106 20 Q193 54 210 142Z" fill="#2E3B26"/>
+  <path d="M160 210 Q50 190 40 120 Q130 130 160 210Z" fill="#2E3B26"/></svg>;
+/* 教材贴片：纸面右下角一张拍立得 + 胶带（规格「下半屏填法 A：教材截图贴片」，也给带货加一道曝光） */
+const BookSnap:React.FC=()=><div style={{position:"absolute",left:700,top:1548,width:262,padding:"12px 12px 0",background:"#FFFDF8",transform:"rotate(5deg)",boxShadow:"0 14px 30px #2D211C55"}}>
+  <Img src={staticFile("img/books.png")} style={{display:"block",width:238,height:206,objectFit:"cover"}}/>
+  <div style={{fontFamily:ZH,fontSize:26,fontWeight:800,color:"#6B4A3A",textAlign:"center",padding:"10px 0 12px",letterSpacing:4}}>配套教材</div>
+  <div style={{position:"absolute",left:66,top:-16,width:130,height:32,background:"#E7C78E",opacity:.7,transform:"rotate(-4deg)",boxShadow:"0 3px 5px #6A4B2926"}}/>
+</div>;
+export const Desk:React.FC<{children:React.ReactNode;snap?:boolean}>=({children,snap})=>{const d=React.useContext(DeskCtx);return <AbsoluteFill style={{background:`radial-gradient(ellipse at 24% 10%, rgba(255,240,215,.35) 0%, transparent 55%), linear-gradient(145deg, ${d.desk} 0%, ${d.deskDark} 100%)`,overflow:"hidden"}}>
+  {/* 垫底教材：封皮 + 书页边 */}
+  <div style={{position:"absolute",left:PX-30,top:PY+40,width:PW+40,height:PH,borderRadius:30,background:d.book,transform:"rotate(2deg)",boxShadow:"0 22px 35px #20191655"}}/>
+  <div style={{position:"absolute",left:PX-8,top:PY+18,width:PW+12,height:PH,borderRadius:32,background:"repeating-linear-gradient(90deg,#EFE4D0 0 6px,#E2D3BA 6px 7px)",transform:"rotate(.8deg)",boxShadow:"0 6px 12px #20191633"}}/>
+  {/* 纸：原场景按 0.9 缩放 */}
+  <div style={{position:"absolute",left:PX,top:PY,width:PW,height:PH,borderRadius:36,overflow:"hidden",transform:"rotate(-.4deg)",boxShadow:"0 30px 75px #34201955, 0 8px 18px #3420192F"}}>
+    <div style={{position:"absolute",left:0,top:0,width:1080,height:1920,transform:`scale(${K})`,transformOrigin:"0 0"}}>{children}</div>
+    <svg width={PW} height={PH} style={{position:"absolute",inset:0,opacity:.05,mixBlendMode:"multiply",pointerEvents:"none"}}><filter id="paperNoise"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" seed="7" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#paperNoise)"/></svg>
+    <div style={{position:"absolute",inset:0,borderRadius:36,boxShadow:"inset 0 2px 4px #FFFFFFA6, inset 0 0 0 1px rgba(0,0,0,.06)",pointerEvents:"none"}}/>
+  </div>
+  {snap?<BookSnap/>:null}<Clip/><Pencil/><Leaf/>
+</AbsoluteFill>;};
 
 export const Track:React.FC<{p:BaseProps}>=({p})=><>
   <style>{`@font-face{font-family:ThaiBold;src:url("${staticFile("fonts/Sarabun-Bold.ttf")}")}@font-face{font-family:VietBold;src:url("${staticFile("fonts/BeVietnamPro-Bold.ttf")}")}`}</style>

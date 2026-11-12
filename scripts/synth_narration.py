@@ -41,8 +41,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 PROJECTS = REPO / "projects"
 
-# edge-tts 之外的引擎都要花钱，这里不给默认路径——要用得显式改配置并走费用确认流程。
-FREE_ENGINES = {"edge"}
+# 非 Edge 引擎必须显式配置并记录用户同意；Azure 路径只使用已验证的 F0 资源。
+SUPPORTED_ENGINES = {"edge", "google", "azure"}
 
 TRIM_AND_NORM = (
     "silenceremove=start_periods=1:start_silence=0.05:start_threshold=-50dB:detection=peak,"
@@ -71,7 +71,14 @@ def _run_edge(text: str, voice: str, raw: Path, rate: str | None,
         cmd.insert(3, f"--pitch={pitch}")
     last = ""
     for _ in range(tries):
-        r = subprocess.run(cmd, capture_output=True, text=True)
+        # 必须带超时：edge-tts 偶尔连上就不回包，没有超时就永远挂着
+        # （2026-11-09 一段 4 个字的越南语挂了 7.5 小时，整批停摆）。
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            last = "timeout 60s"
+            time.sleep(1.5)
+            continue
         if r.returncode == 0 and raw.exists() and raw.stat().st_size > 1000:
             return None
         last = (r.stderr or "")[-200:]
@@ -115,6 +122,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("project_id")
     ap.add_argument("--dry-run", action="store_true", help="只报字数与预计费用，不合成")
+    ap.add_argument("--only-lang", choices=("zh", "th"), help="只合成指定语言，适合分阶段准备双语旁白")
     args = ap.parse_args()
 
     proj = PROJECTS / args.project_id
@@ -137,21 +145,25 @@ def main() -> int:
     rates = cfg.get("rates") or {}
     pitches = cfg.get("pitches") or {}
 
-    total_chars = sum(len(u["text"]) for u in units)
-    print(f"{len(units)} 段 / {total_chars} 字符 / 引擎 {engine}")
-    if engine not in FREE_ENGINES:
-        print(f"\n⚠️  {engine} 不是免费引擎，本脚本不执行付费合成。", file=sys.stderr)
-        print("   走费用确认流程、拿到明确许可后再单独处理。", file=sys.stderr)
+    selected_units = [u for u in units if not args.only_lang or u["lang"] == args.only_lang]
+    total_chars = sum(len(u["text"]) for u in selected_units)
+    print(f"{len(selected_units)} 段 / {total_chars} 字符 / 引擎 {engine}")
+    if engine not in SUPPORTED_ENGINES:
+        print(f"\n⚠️  {engine} 不受此合成脚本支持。", file=sys.stderr)
+        return 2
+    if engine in {"google", "azure"} and not cfg.get("provider_switch_approved"):
+        print(f"{engine} TTS 需要 script.json 中明确记录用户已批准切换服务。", file=sys.stderr)
         return 2
     if args.dry_run:
-        for u in units:
+        for u in selected_units:
             print(f"  {u['id']:16} {u['lang']}  {len(u['text']):3} 字符  {u['text'][:30]}")
-        print("\n(dry-run，未合成；edge-tts 零成本)")
+        print("\n(dry-run，未合成；实际费用由所选引擎的资源级别决定)")
         return 0
 
     audio = proj / "assets" / "audio"
     audio.mkdir(parents=True, exist_ok=True)
-    durations: dict[str, float] = {}
+    duration_path = proj / "artifacts" / "_audio_durations.json"
+    durations: dict[str, float] = json.loads(duration_path.read_text()) if args.only_lang and duration_path.exists() else {}
     failed: list[tuple[str, str, str]] = []
 
     # 「已存在就跳过」原本只看文件在不在 —— 改了文案再跑，旧音频就这么活了下来，
@@ -162,20 +174,42 @@ def main() -> int:
     old_sig: dict[str, str] = json.loads(sigp.read_text()) if sigp.exists() else {}
     new_sig = {
         u["id"]: hashlib.sha1(
-            f"{voices.get(u['lang'])}|{rates.get(u['lang'])}|{pitches.get(u['lang'])}|{u['text']}"
+            f"{engine if u['lang'] == 'zh' or cfg.get('thai_provider_switch_approved') else 'existing-thai'}|"
+            f"{voices.get(u['lang'])}|{(cfg.get('styles') or {}).get(u['lang'], cfg.get('style') if u['lang'] == 'zh' else '')}|{rates.get(u['lang'])}|"
+            f"{pitches.get(u['lang'])}|{u['text']}"
             .encode()
         ).hexdigest()[:12]
         for u in units
     }
-    stale = [u["id"] for u in units
-             if u["id"] in old_sig and old_sig[u["id"]] != new_sig[u["id"]]]
+    stale = [u["id"] for u in selected_units
+             if (u["lang"] == "zh" or cfg.get("thai_provider_switch_approved")) and u["id"] in old_sig
+             and old_sig[u["id"]] != new_sig[u["id"]]]
     for uid in stale:
         for p in (audio / f"{uid}_x.mp3", audio / f"{uid}_raw.mp3"):
             p.unlink(missing_ok=True)
     if stale:
         print(f"文案有变，重新合成 {len(stale)} 段：{', '.join(stale)}")
 
-    for u in units:
+    google_tool = None
+    if engine == "google":
+        sys.path.insert(0, str(REPO))
+        from tools.tool_registry import registry
+        registry.ensure_discovered()
+        google_tool = registry.get("google_tts")
+        if google_tool is None:
+            print("项目工具注册表里找不到 google_tts。", file=sys.stderr)
+            return 2
+    azure_tool = None
+    if engine == "azure":
+        sys.path.insert(0, str(REPO))
+        from tools.tool_registry import registry
+        registry.ensure_discovered()
+        azure_tool = registry.get("azure_tts")
+        if azure_tool is None:
+            print("项目工具注册表里找不到 azure_tts。", file=sys.stderr)
+            return 2
+    total_cost = 0.0
+    for u in selected_units:
         lang = u["lang"]
         voice = voices.get(lang)
         if not voice:
@@ -194,7 +228,31 @@ def main() -> int:
         # 一遇失败就 return 的话，本来能合成的那些也做不了，下次还得从头试。
         # 现在把失败的攒起来，能做的先做完，最后报缺哪些 —— 再跑一次就只补缺口。
         try:
-            tempo = edge_say(u["text"], voice, rates.get(lang), raw, pitches.get(lang))
+            if engine == "azure":
+                if lang == "th" and not cfg.get("thai_provider_switch_approved"):
+                    raise RuntimeError("Switching Thai pronunciation to Azure requires explicit user approval")
+                azure = cfg.get("azure") or {}
+                inputs = {"text": u["text"], "voice": voice,
+                          "style": (cfg.get("styles") or {}).get(lang, "chat-casual" if lang == "zh" else "plain"),
+                          "resource_name": azure["resource_name"],
+                          "resource_group": azure["resource_group"],
+                          "region": azure["region"], "output_path": str(raw)}
+                result = azure_tool.execute(inputs)
+                if not result.success:
+                    raise RuntimeError(result.error or "Azure TTS returned no audio")
+                tempo = float(rates.get(lang, 1.0)) if lang == "th" else 1.0
+            elif engine == "google":
+                inputs = {"text": u["text"], "voice": voice,
+                          "language_code": "cmn-CN" if lang == "zh" else "th-TH",
+                          "speaking_rate": float(rates.get(lang, 1.0)),
+                          "audio_encoding": "MP3", "output_path": str(raw)}
+                result = google_tool.execute(inputs)
+                if not result.success:
+                    raise RuntimeError(result.error or "Google TTS returned no audio")
+                total_cost += result.cost_usd or 0.0
+                tempo = 1.0
+            else:
+                tempo = edge_say(u["text"], voice, rates.get(lang), raw, pitches.get(lang))
         except RuntimeError as e:
             failed.append((u["id"], lang, str(e)[-60:]))
             print(f"  {u['id']:16} ✗ {lang}  {str(e)[-50:]}")
@@ -209,11 +267,11 @@ def main() -> int:
         durations[u["id"]] = probe(final)
         print(f"  {u['id']:16} {durations[u['id']]:6.2f}s  {voice.split('-')[-1]:20} {u['text'][:26]}")
 
-    (proj / "artifacts" / "_audio_durations.json").write_text(
+    duration_path.write_text(
         json.dumps(durations, indent=2), encoding="utf-8"
     )
     # 只记合成成功的那些：失败的段下次仍然当作「没有」，不会被签名挡在门外
-    sigp.write_text(json.dumps({k: v for k, v in new_sig.items() if k in durations},
+    sigp.write_text(json.dumps({**old_sig, **{k: v for k, v in new_sig.items() if k in durations}},
                                ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 合成产物落在 assets/audio/，但 Remotion 合成读的是 composition/public/audio/。
@@ -252,12 +310,12 @@ def main() -> int:
         by_lang: dict[str, int] = {}
         for _uid, lang, _e in failed:
             by_lang[lang] = by_lang.get(lang, 0) + 1
-        print(f"\n⚠️  {len(durations)}/{len(units)} 段完成，缺 {len(failed)} 段："
+        print(f"\n⚠️  {len(selected_units)-len(failed)}/{len(selected_units)} 段完成，缺 {len(failed)} 段："
               + "、".join(f"{k} {v} 段" for k, v in by_lang.items()))
         print("   端点抽风时某种语言会整片挂掉。**别加重试次数**（只会把窗口拉长），"
               "隔一阵再跑一次即可 —— 已完成的会跳过，只补缺口。")
         return 2
-    print(f"\n合成完毕：{len(units)} 段，旁白总时长 {sum(durations.values()):.1f}s，费用 $0")
+    print(f"\n合成完毕：{len(selected_units)} 段，已生成旁白总时长 {sum(durations.values()):.1f}s，本次估算费用 ${total_cost:.4f}")
     return 0
 
 

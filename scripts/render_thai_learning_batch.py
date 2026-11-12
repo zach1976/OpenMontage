@@ -34,7 +34,7 @@ def main() -> int:
         result = subprocess.run([
             "npx", "remotion", "render", "src/index.tsx", "ThaiLearningCards", str(output),
             "--props", payload, "--codec", "h264", "--crf", "20", "--pixel-format", "yuv420p",
-            "--audio-codec", "aac", "--concurrency", "4",
+            "--audio-codec", "aac", "--concurrency", "4", "--timeout", "120000",  # 与别的渲染并行时单帧会超过默认 30s
         ], cwd=REPO / "remotion-composer", capture_output=True, text=True)
         if result.returncode != 0:
             print((result.stdout + "\n" + result.stderr)[-5000:], flush=True)

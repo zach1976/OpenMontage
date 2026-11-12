@@ -110,6 +110,31 @@ def plan10(tl, L):
     plan_list(tl, L, "lift", "前台五个词", "o", 5)
 
 
+def plan11(tl, L):
+    opener(tl, "封面 · 颜色")
+    plan_list(tl, L, "chips", "五个颜色", "c", 5)
+
+
+def plan12(tl, L):
+    opener(tl, "封面 · 家人")
+    plan_list(tl, L, "tree", "一家人怎么叫", "fa", 5)
+
+
+def plan13(tl, L):
+    opener(tl, "封面 · 天气")
+    plan_list(tl, L, "forecast", "五个天气词", "wx", 5)
+
+
+def plan14(tl, L):
+    opener(tl, "封面 · 自我介绍")
+    plan_list(tl, L, "chat", "初次见面五句", "me", 5)
+
+
+def plan15(tl, L):
+    opener(tl, "封面 · 交通工具")
+    plan_list(tl, L, "route", "五种交通工具", "tr", 5)
+
+
 def tail(tl, L):
     tl.begin("book", "教材：基础越南语 1–4 册", L["book"])
     tl.say("book", pre=0.15, post=0.5)
@@ -231,6 +256,58 @@ EPISODES = {
     "08": {'pid': 'viet-book-coso-08-sick', 'pub_title': '在越南生病这5句', 'comp': 'VietBookSick', 'plan': plan08, 'title': '在越南生病这5句', 'cover': ('在越南生病', '说这5句'), 'topic': '看病', 'lines': {'hook': '在越南生病了，先学这五句。', 'book': '出门在外的常用词，可以查越英汉常用词汇分类手册。八千多个词，八大主题、三十二个情景。', 'm0': '我生病了。', 'm1': '头痛。', 'm2': '发烧。', 'm3': '咳嗽。', 'm4': '我需要看医生。'}, 'viet': {'vi_m0': ('Tôi bị ốm', VI_F), 'vi_m1': ('Đau đầu', VI_F), 'vi_m2': ('Sốt', VI_F), 'vi_m3': ('Ho', VI_F), 'vi_m4': ('Tôi cần bác sĩ', VI_F)}, 'data': {'items': [{'vi': 'Tôi bị ốm', 'zh': '我生病了'}, {'vi': 'Đau đầu', 'zh': '头痛'}, {'vi': 'Sốt', 'zh': '发烧'}, {'vi': 'Ho', 'zh': '咳嗽'}, {'vi': 'Tôi cần bác sĩ', 'zh': '我需要看医生'}]}, 'copy': '在越南生病先学 5 句：Tôi bị ốm 我生病了 / Đau đầu 头痛 / Sốt 发烧 / Ho 咳嗽 / Tôi cần bác sĩ 我需要看医生。\n《越英汉常用词汇分类手册》8000+ 词汇 · 8 大主题 · 32 个情景，配《基础越南语》1–4 册。'},
     "09": {'pid': 'viet-book-coso-09-fruits', 'pub_title': '越南水果名这样说', 'comp': 'VietBookFruits', 'plan': plan09, 'title': '越南水果名这样说', 'cover': ('越南水果', '这样叫'), 'topic': '水果', 'lines': {'hook': '越南的水果，名字这样叫。', 'book': '基础越南语一共四册，每课有主课文、生词、会话、语法、练习和拓展阅读。', 'f0': '芒果。', 'f1': '榴莲，越南人叫它水果之王。', 'f2': '山竹，水果皇后。', 'f3': '火龙果。', 'f4': '红毛丹，外面一层红毛。'}, 'viet': {'vi_f0': ('xoài', VI_F), 'vi_f1': ('sầu riêng', VI_F), 'vi_f2': ('măng cụt', VI_F), 'vi_f3': ('thanh long', VI_F), 'vi_f4': ('chôm chôm', VI_F)}, 'data': {'items': [{'vi': 'xoài', 'zh': '芒果', 'c': '#ffb703', 'c2': '#fb8500'}, {'vi': 'sầu riêng', 'zh': '榴莲', 'c': '#c5d86d', 'c2': '#7a8b2c'}, {'vi': 'măng cụt', 'zh': '山竹', 'c': '#6a2c70', 'c2': '#3e1641'}, {'vi': 'thanh long', 'zh': '火龙果', 'c': '#ff4f8b', 'c2': '#c2185b'}, {'vi': 'chôm chôm', 'zh': '红毛丹', 'c': '#e63946', 'c2': '#9d0208'}]}, 'copy': '越南水果这样叫：xoài 芒果 / sầu riêng 榴莲（水果之王）/ măng cụt 山竹（水果皇后）/ thanh long 火龙果 / chôm chôm 红毛丹。\n《基础越南语》1–4 册，每课有主课文、生词、会话、语法、练习和拓展阅读。'},
     "10": {'pid': 'viet-book-coso-10-hotel', 'pub_title': '越南住酒店这5个词', 'comp': 'VietBookHotel', 'plan': plan10, 'title': '越南住酒店这5个词', 'cover': ('越南住酒店', '这5个词'), 'topic': '酒店', 'lines': {'hook': '在越南住酒店，前台这五个词用得上。', 'book': '基础越南语四册打底，配上越英汉常用词汇分类手册，八千多个词，按情景查。', 'o0': '入住。', 'o1': '退房。', 'o2': '无线网密码。', 'o3': '热水。', 'o4': '含早餐。'}, 'viet': {'vi_o0': ('Nhận phòng', VI_F), 'vi_o1': ('Trả phòng', VI_F), 'vi_o2': ('Mật khẩu Wi-Fi', VI_F), 'vi_o3': ('Nước nóng', VI_F), 'vi_o4': ('Bao gồm bữa sáng', VI_F)}, 'data': {'items': [{'vi': 'Nhận phòng', 'zh': '入住', 'n': '1'}, {'vi': 'Trả phòng', 'zh': '退房', 'n': '2'}, {'vi': 'Mật khẩu Wi-Fi', 'zh': '无线网密码', 'n': '3'}, {'vi': 'Nước nóng', 'zh': '热水', 'n': '4'}, {'vi': 'Bao gồm bữa sáng', 'zh': '含早餐', 'n': '5'}]}, 'copy': '越南住酒店前台 5 个词：Nhận phòng 入住 / Trả phòng 退房 / Mật khẩu Wi-Fi 无线网密码 / Nước nóng 热水 / Bao gồm bữa sáng 含早餐。\n《基础越南语》1–4 册 +《越英汉常用词汇分类手册》8000+ 词汇，按情景查。'},
+    # ── 2026-11 库存补齐：11–15。越南语全部取自 viet1000（词条或已校对例句的子串），逐个核过。
+    "11": dict(pid="viet-book-coso-11-colors", pub_title="越南语颜色这样说", comp="VietBookColors", plan=plan11,
+        title="越南语颜色这样说", cover=("越南语", "颜色这样说"), topic="颜色",
+        lines={"hook": "越南语的颜色，前面都加一个词，màu，就是颜色。", "c0": "红色。", "c1": "黄色。", "c2": "白色。", "c3": "黑色。", "c4": "绿色。",
+               "book": "基础越南语一共四册，每课都有会话、生词、语法和练习。"},
+        viet={"vi_c0": ("màu đỏ", VI_F), "vi_c1": ("màu vàng", VI_F), "vi_c2": ("màu trắng", VI_F), "vi_c3": ("màu đen", VI_F), "vi_c4": ("màu xanh lá", VI_F)},
+        data={"items": [{"vi": "màu đỏ", "zh": "红色", "c": "#d62828", "ink": "#ffffff"}, {"vi": "màu vàng", "zh": "黄色", "c": "#ffcc00", "ink": "#1d1d1f"},
+                        {"vi": "màu trắng", "zh": "白色", "c": "#fafafa", "ink": "#1d1d1f"}, {"vi": "màu đen", "zh": "黑色", "c": "#1d1d1f", "ink": "#ffffff"},
+                        {"vi": "màu xanh lá", "zh": "绿色", "c": "#2a9d4b", "ink": "#ffffff"}]},
+        copy="越南语颜色前面都加 màu：màu đỏ 红色 / màu vàng 黄色 / màu trắng 白色 / màu đen 黑色 / màu xanh lá 绿色。\n"
+             "《基础越南语》1–4 册，每课都有会话、生词、语法和练习。"),
+    "12": dict(pid="viet-book-coso-12-family", pub_title="越南语家人怎么叫", comp="VietBookFamily", plan=plan12,
+        title="越南语家人怎么叫", cover=("越南语", "家人怎么叫"), topic="家人",
+        lines={"hook": "越南语里，一家人怎么叫？", "fa0": "爷爷奶奶。", "fa1": "爸爸。", "fa2": "妈妈。", "fa3": "弟弟。", "fa4": "妹妹。",
+               "book": "基础越南语，解放军外国语学院越南语专业编写，一共四册。"},
+        viet={"vi_fa0": ("ông bà", VI_F), "vi_fa1": ("bố", VI_F), "vi_fa2": ("mẹ", VI_F), "vi_fa3": ("em trai", VI_F), "vi_fa4": ("em gái", VI_F)},
+        data={"me": {"x": 540, "y": 880}, "items": [{"vi": "ông bà", "zh": "爷爷奶奶", "x": 540, "y": 430}, {"vi": "bố", "zh": "爸爸", "x": 290, "y": 660},
+                        {"vi": "mẹ", "zh": "妈妈", "x": 790, "y": 660}, {"vi": "em trai", "zh": "弟弟", "x": 290, "y": 1100},
+                        {"vi": "em gái", "zh": "妹妹", "x": 790, "y": 1100}]},
+        copy="越南语一家人：ông bà 爷爷奶奶 / bố 爸爸 / mẹ 妈妈 / em trai 弟弟 / em gái 妹妹。\n"
+             "《基础越南语》1–4 册，解放军外国语学院越南语专业编写。"),
+    "13": dict(pid="viet-book-coso-13-weather", pub_title="越南天气这5个词", comp="VietBookWeather", plan=plan13,
+        title="越南天气这5个词", cover=("越南天气", "这5个词"), topic="天气",
+        lines={"hook": "去越南前看天气，这五个词先学会。", "wx0": "热。", "wx1": "冷。", "wx2": "下雨。", "wx3": "晴天，太阳很大。", "wx4": "刮风。",
+               "book": "常用词可以查越英汉常用词汇分类手册，八千多个词，八大主题、三十二个情景。"},
+        viet={"vi_wx0": ("nóng", VI_F), "vi_wx1": ("lạnh", VI_F), "vi_wx2": ("mưa", VI_F), "vi_wx3": ("nắng", VI_F), "vi_wx4": ("gió", VI_F)},
+        data={"items": [{"vi": "nóng", "zh": "热", "icon": "hot", "day": "周一"}, {"vi": "lạnh", "zh": "冷", "icon": "cold", "day": "周二"},
+                        {"vi": "mưa", "zh": "下雨", "icon": "rain", "day": "周三"}, {"vi": "nắng", "zh": "晴、阳光", "icon": "sun", "day": "周四"},
+                        {"vi": "gió", "zh": "风", "icon": "wind", "day": "周五"}]},
+        copy="越南天气 5 个词：nóng 热 / lạnh 冷 / mưa 下雨 / nắng 晴、阳光 / gió 风。\n"
+             "《越英汉常用词汇分类手册》8000+ 词汇 · 8 大主题 · 32 个情景，配《基础越南语》1–4 册。"),
+    "14": dict(pid="viet-book-coso-14-intro", pub_title="越南语自我介绍5句", comp="VietBookIntro", plan=plan14,
+        title="越南语自我介绍5句", cover=("越南语", "自我介绍"), topic="会话",
+        lines={"hook": "第一次见越南朋友，自我介绍就这五句。", "me0": "你好。", "me1": "你好吗？", "me2": "我叫……", "me3": "很高兴认识你。", "me4": "我是中国人。",
+               "book": "基础越南语每一课都有会话和生词，一共四册，每册十五到十六课。"},
+        viet={"vi_me0": ("Xin chào", VI_F), "vi_me1": ("Bạn khỏe không?", VI_F), "vi_me2": ("Tôi tên là", VI_F),
+              "vi_me3": ("Rất vui được gặp bạn", VI_F), "vi_me4": ("Tôi là người Trung Quốc", VI_F)},
+        data={"items": [{"vi": "Xin chào", "zh": "你好", "side": "l"}, {"vi": "Bạn khỏe không?", "zh": "你好吗？", "side": "l"},
+                        {"vi": "Tôi tên là…", "zh": "我叫……", "side": "r"}, {"vi": "Rất vui được gặp bạn", "zh": "很高兴认识你", "side": "r"},
+                        {"vi": "Tôi là người Trung Quốc", "zh": "我是中国人", "side": "r"}]},
+        copy="越南语自我介绍 5 句：Xin chào 你好 / Bạn khỏe không? 你好吗 / Tôi tên là… 我叫… / Rất vui được gặp bạn 很高兴认识你 / "
+             "Tôi là người Trung Quốc 我是中国人。\n《基础越南语》1–4 册，每课都有会话和生词。"),
+    "15": dict(pid="viet-book-coso-15-transport", pub_title="越南交通工具5个词", comp="VietBookTransport", plan=plan15,
+        title="越南交通工具5个词", cover=("越南出行", "坐什么车"), topic="交通",
+        lines={"hook": "在越南出门，坐什么车？这五个词先学会。", "tr0": "摩托车。", "tr1": "公交车。", "tr2": "火车。", "tr3": "船。", "tr4": "轻轨。",
+               "book": "基础越南语四册打底，配上越英汉常用词汇分类手册，八千多个词，按情景查。"},
+        viet={"vi_tr0": ("xe máy", VI_F), "vi_tr1": ("xe buýt", VI_F), "vi_tr2": ("tàu hỏa", VI_F), "vi_tr3": ("thuyền", VI_F), "vi_tr4": ("tàu điện trên cao", VI_F)},
+        data={"items": [{"vi": "xe máy", "zh": "摩托车", "c": "#e53935"}, {"vi": "xe buýt", "zh": "公交车", "c": "#1e88e5"},
+                        {"vi": "tàu hỏa", "zh": "火车", "c": "#43a047"}, {"vi": "thuyền", "zh": "船", "c": "#00897b"},
+                        {"vi": "tàu điện trên cao", "zh": "轻轨", "c": "#8e24aa"}]},
+        copy="越南出行 5 个词：xe máy 摩托车 / xe buýt 公交车 / tàu hỏa 火车 / thuyền 船 / tàu điện trên cao 轻轨。\n"
+             "《基础越南语》1–4 册 +《越英汉常用词汇分类手册》8000+ 词汇，按情景查。"),
 }
 
 
@@ -312,7 +389,7 @@ async def build(num: str, render: bool) -> None:
         renders.mkdir(exist_ok=True)
         out = renders / f"v{len(list(renders.glob('v*.mp4'))) + 1}.mp4"
         subprocess.run(["npx", "remotion", "render", str(proj / "composition/index.tsx"), ep["comp"], str(out),
-                        f"--props={proj / 'composition/props.json'}", f"--public-dir={pub}", "--log=error"],
+                        f"--props={proj / 'composition/props.json'}", f"--public-dir={pub}", "--log=error", "--timeout=120000"],
                        cwd=REPO / "remotion-composer", check=True)
         print("  rendered", out.relative_to(REPO), flush=True)
 

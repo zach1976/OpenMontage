@@ -37,7 +37,7 @@ export const BrandLine: React.FC<{ label?: string; onDark?: boolean }> = ({ labe
     <div style={{ position: "absolute", top: 128, width: "100%", textAlign: "center",
                   fontFamily: ZH, fontSize: 26, letterSpacing: 2,
                   color: onDark ? "rgba(245,239,230,0.82)" : INK_SOFT }}>
-      越南语千词 app · 在越南生活够用了
+      越南语千词 · 在越南生活够用了
     </div>
     {label ? (
       <div style={{ position: "absolute", top: 192, width: "100%", textAlign: "center",

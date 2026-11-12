@@ -58,7 +58,7 @@ export const Brand: React.FC<{ s: Skin; label?: string }> = ({ s, label }) => (
   <>
     <div style={{ position: "absolute", top: 128, width: "100%", textAlign: "center",
                   fontFamily: ZH_S, fontSize: 26, letterSpacing: 2, color: s.paperDim }}>
-      越南语千词 app · 在越南生活够用了
+      越南语千词 · 在越南生活够用了
     </div>
     {label ? (
       <div style={{ position: "absolute", top: 194, width: "100%", textAlign: "center",
@@ -84,7 +84,7 @@ export const Cover: React.FC<{ s: Skin; badge: string; poster: any; audio?: stri
         <Landscape p={P} top={1460} />
         <CornerFrets p={P} />
         <Petals p={P} />
-        <PosterBrand p={P} zh={ZH} brand="越南语千词 app · 在越南生活够用了" badge={badge} />
+        <PosterBrand p={P} zh={ZH} brand="越南语千词 · 在越南生活够用了" badge={badge} />
         <PosterTitle p={P} zh={ZH} t1={poster?.t1} t2={poster?.t2} layout={s.layout} />
         {audio ? (
           <Sequence from={Math.round((audioAt ?? 0) * fps)}><Audio src={staticFile(audio)} /></Sequence>

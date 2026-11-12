@@ -37,16 +37,22 @@ def card(p: Path) -> str:
     if not mp4:
         return ""
     rel = f"../{p.name}/renders/{mp4.name}"
+    width = props.get("width", 1080)
+    height = props.get("height", 1920)
+    aspect = f"{width}/{height}" if width and height else "9/16"
+    timeline = props.get("scenes") or props.get("review_timeline") or []
     scenes = "".join(
-        f'<li><button data-t="{s["start"]}">{s["start"]:.1f}s</button> {e(s["label"])}</li>' for s in props.get("scenes", []))
+        f'<li><button data-t="{s["start"]}">{s["start"]:.1f}s</button> {e(s["label"])}</li>' for s in timeline)
+    duration = props.get("totalSeconds", props.get("totalFrames", 0) / 30)
+    fallback_title = f"泰文字母歌逐词教学第 {props['episode']} 集 · {props['lettersLabel']}" if "episode" in props else p.name
     tags = " ".join(f'<span class="tag{" hot" if t == "#带货" else ""}">{e(t)}</span>'
                     for t in pub.get("publish_copy", "").split() if t.startswith("#"))
     copy = e(pub.get("publish_copy", "").split("\n\n#")[0]).replace("\n", "<br>")
     acct = {1: "泰语千词", 2: "越南语千词"}.get(pub.get("series_id"), "")
     return f'''<article class="ep" data-id="{e(p.name)}">
-  <video controls preload="metadata" src="{e(rel)}"></video>
+  <video controls preload="metadata" style="aspect-ratio:{e(aspect)}" src="{e(rel)}"></video>
   <div class="info">
-    <div class="top"><b>{e(pub.get("title", p.name))}</b><span class="dur">{props["totalSeconds"]:.1f}s</span></div>
+    <div class="top"><b>{e(pub.get("title", fallback_title))}</b><span class="dur">{duration:.1f}s</span></div>
     <div class="meta">{e(acct)} · {e(pub.get("sub_series", ""))} · <code>{e(pub.get("slug", ""))}</code> · {e(mp4.name)}</div>
     <div class="tags">{tags}</div>
     <details><summary>入库文案 / 场景</summary><p class="copy">{copy}</p><ol class="scenes">{scenes}</ol></details>

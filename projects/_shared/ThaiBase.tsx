@@ -32,7 +32,7 @@ export const ThaiOutro: React.FC<{
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 8, background: GOLD }} />
       <div style={{ position: "absolute", top: 128, width: "100%", textAlign: "center", fontFamily: ZH_S,
                     fontSize: 26, letterSpacing: 2, color: "rgba(241,232,220,0.8)" }}>
-        泰语千词 app · 在泰国生活够用了
+        泰语千词 · 在泰国生活够用了
       </div>
       <div style={{ position: "absolute", top: 452, left: (1080 - 236) / 2, width: 236, height: 236,
                     borderRadius: 52, overflow: "hidden", border: `3px solid rgba(201,162,75,0.6)`,

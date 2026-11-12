@@ -399,7 +399,8 @@ async def synth(path: Path, text: str, voice: tuple[str, str]) -> None:
     raw = path.with_name(path.stem + "_raw.mp3")
     for attempt in range(6):
         try:
-            await edge_tts.Communicate(text, voice=voice[0], rate=voice[1]).save(str(raw))
+            # 超时保护：edge-tts 偶尔连上不回包会永久挂住（见 lessons-learned 2026-11-09）
+            await asyncio.wait_for(edge_tts.Communicate(text, voice=voice[0], rate=voice[1]).save(str(raw)), 60)
             break
         except Exception:
             if attempt == 5:

@@ -18,6 +18,7 @@ import { CollageBurst, CollageBurstProps } from "./CollageBurst";
 import { LyricOverlay, LyricOverlayProps } from "./LyricOverlay";
 import { ThaiDialogueSeries, ThaiDialogueSeriesProps } from "./ThaiDialogueSeries";
 import { ThaiLearningCards, ThaiLearningCardsProps } from "./ThaiLearningCards";
+import { ThaiQuotes } from "./ThaiQuotes";
 
 // ---------------------------------------------------------------------------
 // Theme System — prevents every video from looking like dark fintech
@@ -137,6 +138,16 @@ const calculateMetadata: CalculateMetadataFunction<ExplainerProps> = async ({
 export const Root: React.FC = () => {
   return (
     <>
+      <Composition
+        id="ThaiQuotes"
+        component={ThaiQuotes as any}
+        durationInFrames={30 * 30}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={{} as any}
+        calculateMetadata={({props}: any) => ({durationInFrames: Math.round((props.durationSeconds ?? 30) * 30)})}
+      />
       <Composition
         id="ThaiLearningCards"
         component={ThaiLearningCards}

@@ -55,6 +55,11 @@ def main() -> int:
             "lang": "zh",
             "text": render.get("spoken_hook", render["hook"]),
         })
+        # 实拍招牌（2026-11-11）：封面后先看整张海报，结尾对着整张海报再读一遍
+        if render.get("overview"):
+            units.append({"id": f"{episode_id}_overview_zh", "section": hook_section_id, "lang": "zh", "text": render["overview"]["say"]})
+        if render.get("poster_review"):
+            units.append({"id": f"{episode_id}_review_intro_zh", "section": hook_section_id, "lang": "zh", "text": render["poster_review"]["say"]})
         episode_items = [dict(item, phase="lesson") for item in source["items"]]
         episode_items.extend(dict(item, phase="analysis") for item in source.get("analysis_items", []))
         for i, item in enumerate(episode_items, start=1):

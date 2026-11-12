@@ -81,6 +81,27 @@ def main() -> int:
         parts = [lead, hook_wav, hook_tail]
         cursor = cover_end
         timings = []
+        extra_speech = []
+
+        def follow(name: str, spoken_seconds: float) -> float:   # 跟读空档按词长走，和禅意系列同一条规则
+            secs = max(0.9, spoken_seconds + 0.35)
+            silence(work / name, secs)
+            parts.append(work / name)
+            return secs
+
+        overview = None
+        ov_cfg = render.get("overview")
+        if ov_cfg:
+            ov_audio = audio_dir / f"{eid}_overview_zh_x.mp3"
+            ov_wav = work / "overview.wav"
+            wav(ov_audio, ov_wav)
+            silence(work / "overview_lead.wav", 0.2)
+            hold = max(float(ov_cfg.get("min_seconds", 3.0)), 0.2 + duration(ov_audio) + 0.6)
+            silence(work / "overview_tail.wav", hold - 0.2 - duration(ov_audio))
+            parts.extend([work / "overview_lead.wav", ov_wav, work / "overview_tail.wav"])
+            extra_speech.append({"start": round(cursor + 0.2, 3), "end": round(cursor + 0.2 + duration(ov_audio), 3)})
+            overview = {**{k: v for k, v in ov_cfg.items() if k not in ("say", "min_seconds")}, "start": round(cursor, 3), "end": round(cursor + hold, 3)}
+            cursor += hold
         for index, item in enumerate(episode["items"], start=1):
             th_id = f"{eid}_{index:02d}_th"
             zh_id = f"{eid}_{index:02d}_zh"
@@ -112,9 +133,18 @@ def main() -> int:
                 wav(word_chinese, word_zh_wav)
                 word_start = cursor + spoken + 0.12
                 word_end = word_start + duration(word_thai) + 0.08 + duration(word_chinese)
-                word_timings.append({"start": round(word_start, 3), "end": round(word_end, 3)})
                 word_parts.extend([word_lead, word_th_wav, word_gap, word_zh_wav])
                 spoken += 0.12 + duration(word_thai) + 0.08 + duration(word_chinese)
+                if _word.get("drill"):      # 讲解后再念一遍泰语 + 跟读空档
+                    again_lead = work / f"word_again_{index:02d}_{word_index:02d}.wav"
+                    follow_gap = work / f"word_follow_{index:02d}_{word_index:02d}.wav"
+                    silence(again_lead, 0.3)
+                    fsec = max(0.9, duration(word_thai) + 0.35)
+                    silence(follow_gap, fsec)
+                    word_parts.extend([again_lead, word_th_wav, follow_gap])
+                    spoken += 0.3 + duration(word_thai) + fsec
+                    word_end = cursor + spoken
+                word_timings.append({"start": round(word_start, 3), "end": round(word_end, 3)})
             block = max(float(render.get("minimum_card_seconds", 3.5)), spoken + float(render.get("tail_gap", 0.32)))
             tail = work / f"tail_{index:02d}.wav"
             silence(tail, max(0.12, block - spoken))
@@ -124,6 +154,36 @@ def main() -> int:
             parts.extend([th_wav, gap, zh_wav, *word_parts, tail])
             timings.append({**item, "start": round(cursor, 3), "end": round(cursor + block, 3), "wordTimings": word_timings})
             cursor += block
+        review = None
+        rv_cfg = render.get("poster_review")
+        if rv_cfg:
+            rv_start = cursor
+            intro = audio_dir / f"{eid}_review_intro_zh_x.mp3"
+            silence(work / "review_lead.wav", 0.2)
+            wav(intro, work / "review_intro.wav")
+            parts.extend([work / "review_lead.wav", work / "review_intro.wav"])
+            extra_speech.append({"start": round(cursor + 0.2, 3), "end": round(cursor + 0.2 + duration(intro), 3)})
+            cursor += 0.2 + duration(intro)
+            steps = []
+            for index, item in enumerate(episode["items"], start=1):
+                thai = audio_dir / f"{eid}_{index:02d}_th_x.mp3"
+                silence(work / f"review_pre_{index:02d}.wav", 0.3)
+                wav(thai, work / f"review_th_{index:02d}.wav")
+                parts.extend([work / f"review_pre_{index:02d}.wav", work / f"review_th_{index:02d}.wav"])
+                st = cursor
+                cursor += 0.3 + duration(thai)
+                extra_speech.append({"start": round(st + 0.3, 3), "end": round(cursor, 3)})
+                if rv_cfg.get("follow", True):
+                    cursor += follow(f"review_follow_{index:02d}.wav", duration(thai))
+                else:                    # 条目多的海报：结尾只连读，不再逐条留跟读空档（卡片里每个词已经跟读过）
+                    silence(work / f"review_follow_{index:02d}.wav", 0.6)
+                    parts.append(work / f"review_follow_{index:02d}.wav")
+                    cursor += 0.6
+                steps.append({"start": round(st, 3), "end": round(cursor, 3), "thai": item["thai"], "chinese": item["chinese"], "box": rv_cfg["boxes"][index - 1]})
+            silence(work / "review_tail.wav", 0.4)
+            parts.append(work / "review_tail.wav")
+            cursor += 0.4
+            review = {**{k: v for k, v in rv_cfg.items() if k not in ("say", "boxes")}, "start": round(rv_start, 3), "end": round(cursor, 3), "steps": steps}
         recap = None
         recap_speech_end = None
         recap_words = episode.get("recap_words", [])
@@ -188,11 +248,11 @@ def main() -> int:
             "seriesName": render["series_name"], "episode": render["episode"], "topic": render["topic"], "hook": render["hook"],
             "accent": render["accent"], "accent2": render.get("accent2", "#F5C45A"), "durationSeconds": round(cursor + outro_seconds, 3),
             "coverEnd": round(cover_end, 3), "outroStart": round(outro_start, 3), "narrationSrc": str(public_rel / "narration.wav"),
-            "musicSrc": str(public_rel / "background.mp3"), "backgroundSrc": render.get("background_src"), "mode": render.get("mode", "cards"),
-            "coverTitle": render.get("cover_title"),
+            "musicSrc": str(public_rel / "background.mp3"), "backgroundSrc": render.get("background_src"), "coverImageSrc": render.get("cover_image_src"), "musicGain": render.get("music_gain"), "coverLines": render.get("cover_lines"), "mode": render.get("mode", "cards"),
+            "coverTitle": render.get("cover_title"), "coverVariant": render.get("cover_variant"), "glyph": render.get("glyph"),
             "appIconSrc": "app/viet_app_icon.png" if target_lang == "vi" else "app/app_icon.png",
-            "items": timings, "recap": recap,
-            "speechRanges": [{"start": lead_seconds, "end": round(lead_seconds + hook_seconds, 3)}] + [{"start": i["start"], "end": i["end"] - float(render.get("tail_gap", 0.32))} for i in timings] + ([{"start": recap["start"], "end": round(recap_speech_end, 3)}] if recap else []) + [{"start": round(outro_start + outro_lead_seconds, 3), "end": round(outro_start + outro_lead_seconds + outro_speech_seconds, 3)}],
+            "items": timings, "recap": recap, "overview": overview, "posterReview": review,
+            "speechRanges": [{"start": lead_seconds, "end": round(lead_seconds + hook_seconds, 3)}] + [{"start": i["start"], "end": i["end"] - float(render.get("tail_gap", 0.32))} for i in timings] + extra_speech + ([{"start": recap["start"], "end": round(recap_speech_end, 3)}] if recap else []) + [{"start": round(outro_start + outro_lead_seconds, 3), "end": round(outro_start + outro_lead_seconds + outro_speech_seconds, 3)}],
         }
         props_path = comp_dir / "props.json"
         props_path.write_text(json.dumps(props, ensure_ascii=False, indent=2) + "\n")

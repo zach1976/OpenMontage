@@ -93,6 +93,14 @@ class GoogleTTS(BaseTool):
                 "default": "en-US-Chirp3-HD-Orus",
                 "description": "Voice name. Default tier is Chirp 3 HD (2024, most natural). Examples: en-US-Chirp3-HD-Orus (male, rich/cinematic), en-US-Chirp3-HD-Aoede (female, warm). Legacy tiers: en-US-Studio-O, en-US-Neural2-D, en-US-Journey-D.",
             },
+            "model_name": {
+                "type": "string",
+                "description": "Optional Cloud TTS model name, for example gemini-2.5-flash-tts.",
+            },
+            "prompt": {
+                "type": "string",
+                "description": "Style instructions for promptable Gemini TTS models.",
+            },
             "language_code": {
                 "type": "string",
                 "default": "en-US",
@@ -132,6 +140,8 @@ class GoogleTTS(BaseTool):
         "text",
         "input_type",
         "voice",
+        "model_name",
+        "prompt",
         "language_code",
         "speaking_rate",
         "pitch",
@@ -221,6 +231,8 @@ class GoogleTTS(BaseTool):
         text = inputs["text"]
         input_type = inputs.get("input_type", "text")
         voice_name = inputs.get("voice", "en-US-Chirp3-HD-Orus")
+        model_name = inputs.get("model_name")
+        prompt = inputs.get("prompt")
         language_code = inputs.get("language_code", "en-US")
         speaking_rate = inputs.get("speaking_rate", 1.0)
         pitch = inputs.get("pitch", 0.0)
@@ -248,6 +260,13 @@ class GoogleTTS(BaseTool):
         else:
             synthesis_input = {"text": text}
 
+        if prompt:
+            if not model_name or not model_name.startswith("gemini-"):
+                return ToolResult(success=False, error="Google TTS prompt requires a Gemini TTS model_name.")
+            if input_type != "text":
+                return ToolResult(success=False, error="Gemini TTS prompt requires plain text input.")
+            synthesis_input["prompt"] = prompt
+
         payload = {
             "input": synthesis_input,
             "voice": {
@@ -260,6 +279,12 @@ class GoogleTTS(BaseTool):
                 "pitch": pitch,
             },
         }
+
+        if model_name:
+            payload["voice"]["modelName"] = model_name
+        if model_name and model_name.startswith("gemini-"):
+            payload["audioConfig"].pop("speakingRate")
+            payload["audioConfig"].pop("pitch")
 
         # Chirp 3 HD and Journey voices require the v1beta1 endpoint
         api_version = "v1beta1" if self._needs_beta_api(voice_name) else "v1"
@@ -279,7 +304,12 @@ class GoogleTTS(BaseTool):
             json=payload,
             timeout=120,
         )
-        response.raise_for_status()
+        if not response.ok:
+            try:
+                message = response.json().get("error", {}).get("message", "")
+            except ValueError:
+                message = ""
+            raise RuntimeError(f"HTTP {response.status_code}: {message or response.reason}")
 
         audio_content = base64.b64decode(response.json()["audioContent"])
 
@@ -293,6 +323,8 @@ class GoogleTTS(BaseTool):
             data={
                 "provider": self.provider,
                 "voice": voice_name,
+                "model_name": model_name,
+                "prompt": prompt,
                 "language_code": language_code,
                 "text_length": len(text),
                 "input_type": input_type,
@@ -302,5 +334,5 @@ class GoogleTTS(BaseTool):
                 "pitch": pitch,
             },
             artifacts=[str(output_path)],
-            model=f"google-tts/{voice_name}",
+            model=f"google-tts/{model_name or voice_name}",
         )

@@ -137,6 +137,10 @@ def build(slug: str, no: int, old: dict) -> None:
     for sub in ("composition/public/fonts", "composition/public/app"):
         if not (proj / sub).exists():
             shutil.copytree(TEMPLATE / sub, proj / sub)
+    # app icon 必须取越南语千词的。TEMPLATE 是泰语高频词，整目录拷过来就成了泰语图标 ——
+    # 2026-10-21 发现 viet-1000-hfx 01–15 片尾全是「越南语千词」配泰语千词图标。
+    shutil.copy2(REPO / "projects/viet-1000-name-01-nguyen/composition/public/app/app_icon.png",
+                 proj / "composition/public/app/app_icon.png")
     for f in ("BeVietnamPro-Bold.ttf", "BeVietnamPro-SemiBold.ttf"):
         shutil.copy2(VIETFONT / f, proj / "composition/public/fonts" / f)
     (proj / "composition/public/music").mkdir(parents=True, exist_ok=True)

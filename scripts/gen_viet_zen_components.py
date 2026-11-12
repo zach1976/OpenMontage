@@ -112,7 +112,7 @@ const PosterCover: React.FC<{ poster: any; dur: number; fps: number }> = ({ post
       <Landscape p={P} top={1460} />
       <CornerFrets p={P} />
       <Petals p={P} />
-      <PosterBrand p={P} zh={ZH} brand="越南语千词 app · 在越南生活够用了"
+      <PosterBrand p={P} zh={ZH} brand="越南语千词 · 在越南生活够用了"
                    badge={"禅意一句 · No." + "__NO__"} />
       <PosterTitle p={P} zh={ZH} t1={poster?.t1} t2={poster?.t2} layout="__LAYOUT__" />
     </AbsoluteFill>

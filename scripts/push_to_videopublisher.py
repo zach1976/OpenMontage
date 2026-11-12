@@ -53,7 +53,9 @@ SUBDIR = {"泰国小名": "series_nickname", "泰国人的英文名": "series_ni
           "越南名字": "series_viet_name", "越南称呼": "series_viet_name",
           "越南美食": "series_food", "越南语神曲": "series_song",
            "泰语神曲": "series_song", "神曲跟唱": "series_song",
-          "教材带货": "series_textbook"}
+           "泰文字母歌逐词教学": "series_song",
+          "教材带货": "series_textbook",
+          "泰国人生小语": "series_quotes", "越南人生小语": "series_quotes"}
 # 少数子系列在两个号下的目录名不一样 —— 越南语那边高频词的老目录叫 series_high_freq
 # （没有 _word 后缀），跟着老目录走，别新开一个平行目录。
 SUBDIR_BY_SERIES = {(2, "高频词"): "series_high_freq"}
@@ -91,6 +93,20 @@ def main() -> int:
                          if not only_episodes or item.get("episode_id") in only_episodes)
         elif pj.exists():
             metas.append((d, json.loads(pj.read_text())))
+    # --variants=<json>：已发布条目「改三成重发」—— 按 key（pid 或 pid/episode_id）覆盖 slug/title/publish_copy/idea_notes，
+    # 只推 variants 里列出的条目；slug 换新 → 作为新视频入库，旧条目（已发布）不动。
+    vfile = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--variants=")), "")
+    if vfile:
+        variants = json.loads(Path(vfile).read_text())
+        picked = []
+        for proj, m in metas:
+            key = proj.name + (f"/{m['episode_id']}" if m.get("episode_id") else "")
+            if key in variants:
+                m = {**m, **variants[key]}
+                if m.get("video_path") is None and "video_path" in variants[key]:
+                    m.pop("video_path")
+                picked.append((proj, m))
+        metas = picked
     if not metas:
         print("没有带 artifacts/publish.json 的项目", file=sys.stderr)
         return 1
@@ -100,6 +116,34 @@ def main() -> int:
     if not (base and token):
         print("缺 VIDEOPUBLISHER_URL / VIDEOPUBLISHER_TOKEN", file=sys.stderr)
         return 1
+
+    # 推送前查库（2026-11-11 加，起因：上一轮漏查 stage）——upsert 固定写 stage=ready、整条覆盖文案：
+    #   · 库里已 published 的条目：拒推（会被改回待发、可能重复发布）。要重发新版就走 --variants 换 slug。
+    #   · 库里待发、但本地标题/文案跟库里不一致：拒推（会冲掉后台手改），先跑 pull_vp_fields.py。
+    # 查不了库（ssh 不通）就整批不推；确实要跳过用 --skip-stage-check。
+    if "--skip-stage-check" not in sys.argv[1:]:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from pull_vp_fields import fetch
+        try:
+            db = fetch([m["slug"] for _, m in metas])
+        except Exception as e:  # noqa: BLE001
+            print(f"查库失败（{e.__class__.__name__}），整批不推；确认库里状态后可加 --skip-stage-check", file=sys.stderr)
+            return 1
+        allow_pub = "--allow-published" in sys.argv[1:]
+        kept = []
+        for proj, m in metas:
+            row = db.get(m["slug"])
+            if row and row["stage"] != "ready" and not allow_pub:
+                print(f"  ✗ {m['slug']}  库里 stage={row['stage']}，不覆盖（要重发新版请用 --variants 换 slug）", file=sys.stderr)
+                continue
+            stale = [f for f in ("title", "publish_copy") if row and row.get(f) and (m.get(f) or "").strip() != row[f].strip()]
+            if stale and "--overwrite-fields" not in sys.argv[1:]:
+                print(f"  ✗ {m['slug']}  本地 {'/'.join(stale)} 跟库里不一致，先跑 pull_vp_fields.py {proj.name}"
+                      "（确定要用本地版覆盖加 --overwrite-fields）", file=sys.stderr)
+                continue
+            kept.append((proj, m))
+        print(f"查库：{len(metas)} 条，命中 {len(db)}，可推 {len(kept)}")
+        metas = kept
 
     ok = fail = 0
     for proj, m in metas:
@@ -149,6 +193,15 @@ def main() -> int:
             m["publish_copy"] = _title + "\n" + _copy
         _tags = " ".join(t for t in re.findall(r"#[^\s#]+", m["publish_copy"]) if not re.search(r"[\u0E00-\u0E7F]", t))
         m["wechat_copy"] = (_title + " " + _tags).strip()
+        # 导流合规（lang1000 2026-05-23 / 08-24 两平台实锤判罚）：文案不许引导站外下载、不许福利措辞、
+        # 不许评论区引导；app 发音是 AI 合成，不许写真人/原生发音（2026-10-20 用户纠正）。
+        # 只拦引导句式，不拦单字 —— 「刷手机」那集把「下载」「App」当词来教，是正常内容。
+        _BANNED = r"主页搜|全部免费|App ?Store|应用商店|下载(泰语|越南语)千词|千词 ?[Aa][Pp][Pp]|评论区|真人发音|原生发音|原声发音"
+        _hit = re.search(_BANNED, " ".join(str(m.get(k) or "") for k in ("title", "publish_copy", "wechat_copy")))
+        if _hit:
+            print(f"  ✗ {m['slug']}  文案含导流/虚假表述「{_hit.group(0)}」，拒绝入库", file=sys.stderr)
+            fail += 1
+            continue
         # 带货片入库必须带「带货」标签（2026-10-12 用户指令）：文案里补 #带货，idea_notes 以【带货】开头
         if "带货" in m.get("sub_series", ""):
             if "#带货" not in m.get("publish_copy", ""):

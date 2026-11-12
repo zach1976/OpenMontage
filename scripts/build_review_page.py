@@ -163,7 +163,7 @@ def collect_scenes(props: dict | None, script: dict | None) -> list[dict]:
         return scenes
 
     hook = props.get("hook")
-    if hook:
+    if isinstance(hook, dict) and hook:  # 卡片产线的 hook 是一句字符串，不是片头结构
         # 片头这一屏历经三种结构：四行递进 lines[] → 标题卡 line1/line2 →
         # 封面即第一帧（字段搬进 hook.cover）。三种都要认，否则时间轴第一条会是空的。
         cov = hook.get("cover") or {}
@@ -934,6 +934,9 @@ def main() -> int:
     marker = load(proj / "project.json") or {}
     report = load(proj / "artifacts" / "render_report.json") or {}
     props = load(proj / "composition" / "props.json")
+    if props is None:  # 卡片批量产线的单集项目：props 在 composition/ep01/ 下
+        eps = sorted((proj / "composition").glob("ep*/props.json"))
+        props = load(eps[0]) if len(eps) == 1 else None
     script = load(proj / "artifacts" / "script.json")
     decisions = load(proj / "artifacts" / "decision_log.json") or []
     review_copy = load(proj / "artifacts" / "review_copy.json") or {}
@@ -1056,7 +1059,7 @@ def main() -> int:
             **{k: ((" · ".join(v) if isinstance(v, list) else (v or ""))
                    if (v := (h.get("poster") or {}).get(k)) is not None else "")
                for k in ("t1", "t2", "plaque", "row", "foot")},
-        })(props.get("hook") or {}),
+        })(props.get("hook") if isinstance(props.get("hook"), dict) else {}),
         "facts_html": facts_html,
         "decisions_html": decisions_html,
         "copy_html": build_review_copy_html(review_copy),

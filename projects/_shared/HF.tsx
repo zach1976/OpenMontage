@@ -32,7 +32,8 @@ const TH = "ThaiBold, sans-serif", TH_R = "ThaiReg, sans-serif";
 
 // 配色由 props.palette 注入 —— **每集不同**（用户 2026-08-30 指令）。
 // 版式刻意不变：高频词是格式化系列，老版 20 支同一张脸正是它被认出来的原因。
-const CREAM = "#EDE9DE";
+const CREAM = "#F6F1E6";
+const BRAND_LINE = "泰语千词 · 每天一个高频词";
 const DIM = "rgba(237,233,222,0.44)";
 let INK = "#0A1613", INK_2 = "#12241E", GOLD = "#E8B65C", GOLD_D = "rgba(232,182,92,0.30)";
 const hexA = (hex: string, a: number) => {
@@ -56,116 +57,104 @@ export type Props = {
   bgm: { src: string; gain: number }; speak: number[][]; fps: number;
 };
 
-const ROW_H = 196, TABLE_TOP = 748, TABLE_L = 76, TABLE_W = 928;
+const ROW_H = 160, TABLE_TOP = 690, TABLE_L = 56, TABLE_W = 968;
+// ── 2026-11 美化（ChatGPT 稿）：奶油气泡词头 + 胶囊/缎带 + 半透明行条；配图在表格下方正常显示。
+const INK_TXT = "#2A2140";
+const sameWord = (seg: string, th: string) => seg.trim().toLowerCase() === th.trim().toLowerCase();
 
-/** 底：本集专属底色，四角压暗；配图压在下端当纹理（不是主角） */
+/** 底：主色晕染到本集底色；配图压在表格下方，能看出是什么，但上缘化进底色 */
 const Backdrop: React.FC<{ photo?: string; ink: string; ink2: string; accent: string }> =
-({ photo, ink, ink2, accent }) => {
-  const f = useCurrentFrame();
-  const d = (p: number, a: number) => Math.sin(f / 280 + p) * a;
+({ photo, ink, ink2, accent }) => (
+  <AbsoluteFill style={{ backgroundColor: ink }}>
+    <AbsoluteFill style={{ background:
+      `linear-gradient(170deg, ${hexA(accent, 0.30)} 0%, ${ink2} 34%, ${ink} 78%)` }} />
+    <div style={{ position: "absolute", left: 140, top: 150, width: 800, height: 800, borderRadius: "50%",
+                  background: `radial-gradient(circle, ${hexA(accent, 0.16)} 0%, transparent 62%)` }} />
+    {photo ? (
+      <div style={{ position: "absolute", left: 0, top: 1300, width: 1080, height: 620, overflow: "hidden",
+                    WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 30%, #000 80%, transparent 100%)" }}>
+        <Img src={staticFile(photo)} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.9,
+                                              filter: "saturate(1.15) brightness(0.92)" }} />
+      </div>
+    ) : null}
+  </AbsoluteFill>
+);
+
+const Brand: React.FC<{ badge: string }> = () => (
+  <div style={{ position: "absolute", top: 60, left: 48, height: 70, padding: "0 28px", borderRadius: 35,
+                background: "#FFF7F4", boxShadow: "0 8px 20px rgba(16,24,39,.18)", display: "flex",
+                alignItems: "center", fontFamily: ZH_S, fontSize: 30, fontWeight: 700, color: INK_TXT, letterSpacing: 1 }}>
+    {BRAND_LINE}
+  </div>
+);
+
+/** 词头：奶油气泡里的目标词 + 谐音胶囊 + 中文胶囊（期号不上屏 —— 每条视频独立） */
+const WordHead: React.FC<{ w: any; op?: number }> = ({ w, op = 1 }) => {
+  const latin = !/[฀-๿]/.test(w.th);
   return (
-    <AbsoluteFill style={{ backgroundColor: ink }}>
-      <AbsoluteFill style={{ background:
-        `radial-gradient(126% 74% at 50% 30%, ${ink2} 0%, ${hexA(ink2, 0.55)} 52%, ${ink} 100%)` }} />
-      {photo ? (
-        <div style={{ position: "absolute", left: 0, top: 1180, width: 1080, height: 740,
-                      overflow: "hidden" }}>
-          <Img src={staticFile(photo)} style={{ width: "100%", height: "100%",
-                                                objectFit: "cover", opacity: 0.30 }} />
-          {/* 上缘化开，别在画面中间切出一条硬边；整块再压一道本集底色 */}
-          <AbsoluteFill style={{ background:
-            `linear-gradient(180deg, ${ink} 0%, ${hexA(ink, 0.62)} 26%, ${hexA(ink, 0.52)} 62%, ${hexA(ink, 0.86)} 100%)` }} />
-        </div>
-      ) : null}
-      {[[300, 620, 520, 0], [800, 1240, 560, 2.4]].map(([x, y, r, ph], i) => (
-        <div key={i} style={{ position: "absolute", left: x + d(ph, 20) - r / 2,
-                              top: y + d(ph + 1, 12) - r / 2, width: r, height: r,
-                              borderRadius: "50%", filter: "blur(96px)",
-                              background: hexA(accent, 0.055) }} />
-      ))}
-      <AbsoluteFill style={{ background:
-        "radial-gradient(80% 58% at 50% 46%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.42) 100%)" }} />
-    </AbsoluteFill>
+    <div style={{ opacity: op }}>
+      <div style={{ position: "absolute", top: 150, width: "100%", display: "flex", justifyContent: "center" }}>
+        <div style={{ padding: latin ? "0 64px" : "0 56px", height: 210, borderRadius: 105,
+                      background: "radial-gradient(circle at 40% 30%, #FFFDF6, #FFF1D6)",
+                      border: `5px solid ${GOLD}`, boxShadow: `0 16px 40px rgba(0,0,0,.28), 0 0 0 10px ${hexA(GOLD, 0.16)}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: TH, fontSize: latin ? 120 : 132, lineHeight: 1.5, color: INK_TXT }}>{w.th}</div>
+      </div>
+      <div style={{ position: "absolute", top: 384, width: "100%", display: "flex", justifyContent: "center", gap: 18 }}>
+        <div style={{ height: 76, padding: "0 34px", borderRadius: 38, background: "linear-gradient(90deg, #EFE2F4, #E2D2EE)",
+                      display: "flex", alignItems: "center", fontFamily: ZH, fontSize: 38, color: "#4C3F66" }}>谐音「{w.xie}」</div>
+        <div style={{ height: 76, padding: "0 40px", borderRadius: 38, background: "linear-gradient(180deg, #FFF9F0, #FFEBC8)",
+                      border: `2px solid ${GOLD}`, display: "flex", alignItems: "center", fontFamily: ZH, fontSize: 44, color: INK_TXT }}>{w.zh}</div>
+      </div>
+    </div>
   );
 };
 
-const Brand: React.FC<{ badge: string }> = ({ badge }) => (
-  <>
-    <div style={{ position: "absolute", top: 96, width: "100%", textAlign: "center",
-                  fontFamily: ZH_S, fontSize: 26, letterSpacing: 8, color: DIM }}>
-      泰语千词 · 每天一个高频词
-    </div>
-    <div style={{ position: "absolute", top: 150, width: "100%", textAlign: "center",
-                  fontFamily: ZH_S, fontSize: 24, letterSpacing: 9, color: GOLD_D }}>
-      {badge}
-    </div>
-  </>
-);
-
-/** 词头：แล้ว 一直挂在上面不动 —— 12 行讲的都是它 */
-const WordHead: React.FC<{ w: any; op?: number }> = ({ w, op = 1 }) => (
-  <div style={{ opacity: op }}>
-    <div style={{ position: "absolute", top: 232, width: "100%", textAlign: "center",
-                  fontFamily: TH, fontSize: 112, lineHeight: 1.34, color: GOLD }}>
-      {w.th}
-    </div>
-    <div style={{ position: "absolute", top: 388, width: "100%", textAlign: "center",
-                  fontFamily: ZH, fontSize: 34, letterSpacing: 4, color: DIM }}>
-      谐音「{w.xie}」
-    </div>
-    <div style={{ position: "absolute", top: 444, width: "100%", textAlign: "center",
-                  fontFamily: ZH, fontSize: 42, letterSpacing: 2, color: CREAM }}>
-      {w.zh}
-    </div>
+/** 本组标题：金色缎带 */
+const Ribbon: React.FC<{ text: string }> = ({ text }) => (
+  <div style={{ position: "absolute", top: 520, width: "100%", display: "flex", justifyContent: "center" }}>
+    <div style={{ position: "relative", height: 100, padding: "0 70px", display: "flex", alignItems: "center",
+                  background: `linear-gradient(180deg, #FFE7A3, ${GOLD})`, clipPath: "polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%)",
+                  fontFamily: ZH, fontSize: 52, letterSpacing: 4, color: INK_TXT }}>{text}</div>
   </div>
 );
 
 /**
- * 一行。三种状态：
- *   0 未讲 —— 暗，只见轮廓
- *   1 正在讲 —— 金边亮起，泰语放大
- *   2 讲过了 —— **打勾 + 沉下去**，不还原（这就是 แล้ว）
+ * 一行，三种状态一眼可分：
+ *   0 未讲 —— 半透明条，字稍淡
+ *   1 正在讲 —— 奶油底高亮 + 主色描边发光，icon 变实色
+ *   2 讲过了 —— 保持可读、打勾（不再压暗到看不清）
  */
-const TableRow: React.FC<{ r: Row; i: number; state: number; lit: number }> =
-({ r, i, state, lit }) => {
+const TableRow: React.FC<{ r: Row; i: number; state: number; lit: number; w: any }> =
+({ r, i, state, lit, w }) => {
   const y = TABLE_TOP + i * ROW_H;
   const on = state === 1, done = state === 2;
-  const bg = on ? `rgba(232,182,92,${(0.10 + 0.06 * lit).toFixed(3)})`
-                : done ? "rgba(237,233,222,0.028)" : "rgba(237,233,222,0.045)";
-  const bd = on ? `rgba(232,182,92,${(0.55 + 0.35 * lit).toFixed(3)})`
-                : done ? "rgba(232,182,92,0.16)" : "rgba(237,233,222,0.10)";
-  const fade = done ? 0.44 : on ? 1 : 0.60;
+  const txt = on ? INK_TXT : CREAM;
   return (
-    <div style={{ position: "absolute", left: TABLE_L, top: y, width: TABLE_W, height: ROW_H - 26,
-                  borderRadius: 16, background: bg, border: `1.5px solid ${bd}`,
-                  display: "flex", alignItems: "center", padding: "0 22px", opacity: fade }}>
-      {/* 汉字 icon —— 老版最好用的那个锚点 */}
-      <div style={{ width: 68, height: 68, borderRadius: 13, flexShrink: 0,
-                    border: `1.5px solid ${on ? GOLD : "rgba(237,233,222,0.22)"}`,
+    <div style={{ position: "absolute", left: on ? TABLE_L - 10 : TABLE_L, top: y, width: on ? TABLE_W + 20 : TABLE_W,
+                  height: ROW_H - 22, borderRadius: 30,
+                  background: on ? "linear-gradient(180deg, #FFFAF0, #FFF0D6)" : `rgba(255,255,255,${done ? 0.10 : 0.07})`,
+                  border: on ? `3px solid ${GOLD}` : "1.5px solid rgba(255,255,255,.20)",
+                  boxShadow: on ? `0 0 ${26 + 14 * lit}px ${hexA(GOLD, 0.45)}, 0 14px 30px rgba(0,0,0,.25)` : "none",
+                  display: "flex", alignItems: "center", padding: "0 26px", opacity: state === 0 ? 0.78 : 1 }}>
+      <div style={{ width: 76, height: 76, borderRadius: 18, flexShrink: 0,
+                    background: on ? GOLD : "transparent", border: on ? "none" : "2px solid rgba(255,255,255,.55)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: ZH, fontSize: 36, color: on ? GOLD : CREAM }}>
-        {r.icon}
-      </div>
-      <div style={{ width: 206, marginLeft: 20, fontFamily: ZH, fontSize: 42,
-                    color: CREAM, whiteSpace: "nowrap" }}>{r.zh}</div>
-      {/* 泰语按词分开显示（用户 2026-08-30 指令）。**只是显示分词，配音仍用连写的 r.th** ——
-          泰语 TTS 遇空格会断读。目标词 แล้ว 满色，其余部分压一档，
-          于是「ไป แล้ว」和「แล้ว ไป」的词序差别一眼就能看出来。 */}
-      <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: on ? 20 : 17,
-                    fontFamily: TH, fontSize: on ? 62 : 55, lineHeight: 1.5,
-                    whiteSpace: "nowrap" }}>
+                    fontFamily: ZH, fontSize: 42, color: on ? "#FFFFFF" : CREAM }}>{r.icon}</div>
+      <div style={{ width: 190, marginLeft: 22, fontFamily: ZH, fontSize: 44, color: txt, whiteSpace: "nowrap" }}>{r.zh}</div>
+      <div style={{ width: 2, height: 54, background: on ? hexA(GOLD, 0.6) : "rgba(255,255,255,.25)", marginRight: 26 }} />
+      <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: 18, fontFamily: TH,
+                    fontSize: on ? 64 : 58, lineHeight: 1.5, whiteSpace: "nowrap" }}>
         {r.thParts.map((seg, k) => (
-          <span key={k} style={{ color: GOLD, opacity: seg === "แล้ว" ? 1 : 0.72 }}>{seg}</span>
+          <span key={k} style={{ color: sameWord(seg, w.th) ? GOLD : (on ? INK_TXT : CREAM),
+                                 opacity: sameWord(seg, w.th) ? 1 : (on ? 0.85 : 0.72) }}>{seg}</span>
         ))}
       </div>
-      {/* 最后一列是**中文谐音**（用户 2026-08-30 指令，不用音标）。
-          按泰语音节一一对应，一个音节一个字，不超 3 字 —— 老版「毕巴度」那种
-          乱拆音节的写法才是读不出来的原因，谐音本身没错。 */}
-      <div style={{ width: 168, textAlign: "right", fontFamily: ZH, fontSize: 34,
-                    color: on ? CREAM : DIM, letterSpacing: 1, whiteSpace: "nowrap" }}>{r.xie}</div>
-      {/* 讲完就打勾 —— 老版扫过还原，这一版扫过结掉 */}
-      <div style={{ width: 32, textAlign: "right", fontFamily: ZH_S, fontSize: 30,
-                    color: GOLD, opacity: done ? 0.9 : 0 }}>✓</div>
+      <div style={{ minWidth: 120, height: on ? 64 : "auto", padding: on ? "0 22px" : 0, borderRadius: 32,
+                    border: on ? `2px solid ${hexA(GOLD, 0.7)}` : "none", display: "flex", alignItems: "center",
+                    justifyContent: "flex-end", fontFamily: ZH, fontSize: 36, color: txt, whiteSpace: "nowrap" }}>{r.xie}</div>
+      <div style={{ width: 44, textAlign: "right", fontFamily: ZH_S, fontSize: 40, fontWeight: 700,
+                    color: GOLD, opacity: done ? 1 : 0 }}>✓</div>
     </div>
   );
 };
@@ -217,11 +206,8 @@ const PageScene: React.FC<{ p: Page; w: any; badge: string; fps: number }> =
   return (
     <AbsoluteFill style={{ opacity: op }}>
       <Brand badge={badge} />
-      <WordHead w={w} op={0.92} />
-      <div style={{ position: "absolute", top: 566, width: "100%", textAlign: "center",
-                    fontFamily: ZH, fontSize: 44, letterSpacing: 4, color: GOLD }}>
-        {p.title}
-      </div>
+      <WordHead w={w} />
+      <Ribbon text={p.title} />
       {p.rows.map((r, i) => {
         // 连读那一段：四行一起亮，观众跟着念
         const state = echoOn ? 1 : tSec >= r.start + r.dur ? 2 : tSec >= r.start ? 1 : 0;
@@ -229,11 +215,11 @@ const PageScene: React.FC<{ p: Page; w: any; badge: string; fps: number }> =
         const lit = echoOn ? 1
           : state === 1 ? interpolate(f, [r0, r0 + 10], [0, 1],
                                      { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 0;
-        return <TableRow key={r.id} r={r} i={i} state={state} lit={lit} />;
+        return <TableRow key={r.id} r={r} i={i} state={state} lit={lit} w={w} />;
       })}
-      <div style={{ position: "absolute", top: 1568, width: "100%", textAlign: "center",
-                    fontFamily: ZH_S, fontSize: 30, letterSpacing: 6, color: GOLD,
-                    opacity: echoOn ? 0.95 : 0 }}>
+      <div style={{ position: "absolute", top: 1350, width: "100%", textAlign: "center",
+                    fontFamily: ZH, fontSize: 40, letterSpacing: 6, color: "#FFF7E6",
+                    textShadow: "0 3px 12px rgba(0,0,0,.6)", opacity: echoOn ? 1 : 0 }}>
         跟着念一遍
       </div>
       {/* 分组标题的配音 —— 第一版漏挂了，校验器逐段量出来的（比垫乐高不出 6dB 就判没响） */}
